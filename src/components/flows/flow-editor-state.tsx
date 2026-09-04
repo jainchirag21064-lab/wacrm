@@ -170,6 +170,10 @@ export function defaultConfigFor(type: NodeType): Record<string, unknown> {
       return {
         prompt_text: "",
         var_key: "answer",
+        input_mode: "text",
+        options: [
+          { reply_id: "option_1", title: "Option 1", value: "option_1" },
+        ],
         next_node_key: "",
       };
     case "condition":

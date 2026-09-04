@@ -78,6 +78,8 @@ export interface SendListNodeConfig {
       next_node_key: string;
     }>;
   }>;
+  /** Optional flow variable that receives the selected row value or reply_id. */
+  capture_var_key?: string;
 }
 
 /**
@@ -144,6 +146,14 @@ export interface CollectInputNodeConfig {
   validation?: "any" | "email" | "phone" | "regex";
   /** Used only when `validation === 'regex'`. */
   regex?: string;
+  /** Switches the prompt from free text to predefined selectable options. */
+  input_mode?: "text" | "options";
+  /** Options are captured into var_key and advance to the same next node. */
+  options?: Array<{
+    reply_id: string;
+    title: string;
+    value?: string;
+  }>;
   /** Node to advance to after capture. */
   next_node_key: string;
 }

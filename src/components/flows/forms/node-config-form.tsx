@@ -174,20 +174,47 @@ export function NodeConfigForm({
       );
 
     case "collect_input":
-      return (
-        <>
+      return (() => {
+        const collectCfg = cfg as {
+          prompt_text?: string;
+          var_key?: string;
+          input_mode?: "text" | "options";
+          options?: Array<{ reply_id: string; title: string; value?: string }>;
+        };
+        const options = collectCfg.options ?? [];
+        const updateOption = (index: number, patch: Record<string, string>) =>
+          onUpdateConfig({
+            options: options.map((option, i) =>
+              i === index ? { ...option, ...patch } : option,
+            ),
+          });
+        return (
+          <>
           <TextRow
             label={t("promptToCustomer")}
-            value={(cfg as { prompt_text?: string }).prompt_text ?? ""}
+            value={collectCfg.prompt_text ?? ""}
             onChange={(v) => onUpdateConfig({ prompt_text: v })}
             rows={2}
           />
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">{t("inputMode")}</label>
+            <Select
+              value={collectCfg.input_mode ?? "text"}
+              onValueChange={(value) => onUpdateConfig({ input_mode: value })}
+            >
+              <SelectTrigger className="bg-muted"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">{t("textAnswer")}</SelectItem>
+                <SelectItem value="options">{t("predefinedOptions")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">
               {t("varKeyLabel")}
             </label>
             <Input
-              value={(cfg as { var_key?: string }).var_key ?? ""}
+              value={collectCfg.var_key ?? ""}
               onChange={(e) =>
                 onUpdateConfig({
                   var_key: e.target.value.replace(/[^a-zA-Z0-9_]/g, ""),
@@ -200,12 +227,33 @@ export function NodeConfigForm({
               {t("varKeyHelp")}{" "}
               <code className="rounded bg-muted px-1">
                 {"{{vars."}
-                {(cfg as { var_key?: string }).var_key || "name"}
+                {collectCfg.var_key || "name"}
                 {"}}"}
               </code>
               .
             </p>
           </div>
+          {collectCfg.input_mode === "options" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-muted-foreground">{t("optionsHelp")}</label>
+              {options.map((option, index) => (
+                <div key={index} className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                  <Input value={option.title} onChange={(e) => updateOption(index, { title: e.target.value })} placeholder={t("optionTitlePlaceholder")} className="bg-muted" />
+                  <Input value={option.value ?? ""} onChange={(e) => updateOption(index, { value: e.target.value })} placeholder={t("capturedValuePlaceholder")} className="bg-muted" />
+                  <Input value={option.reply_id} onChange={(e) => updateOption(index, { reply_id: slugify(e.target.value, `option_${index + 1}`) })} placeholder="reply_id" className="bg-muted font-mono text-xs" />
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onUpdateConfig({ options: [...options, { reply_id: `option_${options.length + 1}`, title: `Option ${options.length + 1}`, value: "" }] })}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("addOption")}
+              </Button>
+            </div>
+          )}
           <NextNodeRow
             value={(cfg as { next_node_key?: string }).next_node_key ?? ""}
             allNodes={allNodes}
@@ -213,8 +261,9 @@ export function NodeConfigForm({
             onChange={(v) => onUpdateConfig({ next_node_key: v })}
             label={t("advanceAfterCapture")}
           />
-        </>
-      );
+          </>
+        );
+      })();
 
     case "condition":
       return (
@@ -557,6 +606,7 @@ interface SendListCfg {
   text?: string;
   button_label?: string;
   footer_text?: string;
+  capture_var_key?: string;
   sections?: Array<{
     title?: string;
     rows: Array<{
@@ -677,6 +727,12 @@ function SendListForm({
           onChange={(v) => onUpdateConfig({ footer_text: v })}
         />
       </div>
+      <Input
+        value={cfg.capture_var_key ?? ""}
+        onChange={(e) => onUpdateConfig({ capture_var_key: e.target.value.replace(/[^a-zA-Z0-9_]/g, "") })}
+        placeholder={t("listCaptureVarPlaceholder")}
+        className="bg-muted font-mono text-xs"
+      />
 
       <div className="mt-2">
         <label className="mb-2 block text-xs text-muted-foreground">

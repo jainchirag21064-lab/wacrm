@@ -551,6 +551,8 @@ function validateNode(
       const cfg = node.config as {
         prompt_text?: string;
         var_key?: string;
+        input_mode?: "text" | "options";
+        options?: Array<{ reply_id?: string; title?: string; value?: string }>;
         next_node_key?: string;
       };
       if (!cfg.prompt_text?.trim()) {
@@ -561,6 +563,36 @@ function validateNode(
           field: "prompt_text",
           message: "Collect-input needs a prompt to send the customer.",
         });
+      }
+      if (cfg.input_mode === "options") {
+        if (!cfg.options?.length) {
+          issues.push({
+            severity: "error",
+            scope: "node",
+            node_key: node.node_key,
+            field: "options",
+            message: "Collect-input options mode needs at least one option.",
+          });
+        } else if (cfg.options.length > 10) {
+          issues.push({
+            severity: "error",
+            scope: "node",
+            node_key: node.node_key,
+            field: "options",
+            message: "Collect-input allows at most 10 options.",
+          });
+        }
+        for (const [index, option] of (cfg.options ?? []).entries()) {
+          if (!option.reply_id?.trim() || !option.title?.trim()) {
+            issues.push({
+              severity: "error",
+              scope: "node",
+              node_key: node.node_key,
+              field: `options.${index}`,
+              message: `Option ${index + 1} needs a reply ID and title.`,
+            });
+          }
+        }
       }
       if (!cfg.var_key?.trim()) {
         issues.push({
@@ -577,6 +609,15 @@ function validateNode(
           node_key: node.node_key,
           field: "var_key",
           message: `var_key "${cfg.var_key}" must be alphanumeric+underscore and start with a letter or underscore.`,
+        });
+      }
+      if (cfg.input_mode && !["text", "options"].includes(cfg.input_mode)) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "input_mode",
+          message: "Collect-input answer type must be text or options.",
         });
       }
       if (!cfg.next_node_key) {

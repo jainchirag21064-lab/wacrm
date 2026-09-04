@@ -481,6 +481,49 @@ async function sendListAndSuspend(
   return { outcome: "advanced", node_key: node.node_key };
 }
 
+async function sendCollectOptionsAndSuspend(
+  db: AdminClient,
+  run: FlowRunRow,
+  node: FlowNodeRow,
+  contact: ContactFields | null,
+  cfg: CollectInputNodeConfig,
+): Promise<string> {
+  const options = cfg.options ?? [];
+  const common = {
+    accountId: run.account_id,
+    userId: run.user_id,
+    conversationId: run.conversation_id!,
+    contactId: run.contact_id!,
+  };
+  const sent = options.length <= 3
+    ? await engineSendInteractiveButtons({
+        ...common,
+        bodyText: interpolateVars(cfg.prompt_text, run.vars, contact),
+        buttons: options.map((option) => ({
+          id: option.reply_id,
+          title: interpolateVars(option.title, run.vars, contact),
+        })),
+      })
+    : await engineSendInteractiveList({
+        ...common,
+        bodyText: interpolateVars(cfg.prompt_text, run.vars, contact),
+        buttonLabel: "Choose an option",
+        sections: [{
+          title: "Options",
+          rows: options.map((option) => ({
+            id: option.reply_id,
+            title: interpolateVars(option.title, run.vars, contact),
+          })),
+        }],
+      });
+  await logEvent(db, run.id, "message_sent", node.node_key, {
+    node_type: "collect_input",
+    input_mode: "options",
+    whatsapp_message_id: sent.whatsapp_message_id,
+  });
+  return sent.whatsapp_message_id;
+}
+
 async function executeHandoff(
   db: AdminClient,
   run: FlowRunRow,
@@ -748,17 +791,29 @@ async function advanceFromNodeKey(
       // wake us up via handleReplyForActiveRun's collect_input branch.
       const cfg = node.config as unknown as CollectInputNodeConfig;
       try {
-        const { whatsapp_message_id } = await engineSendText({
-          accountId: run.account_id,
-    userId: run.user_id,
-          conversationId: run.conversation_id!,
-          contactId: run.contact_id!,
-          text: interpolateVars(cfg.prompt_text, run.vars, contact),
-        });
-        await logEvent(db, run.id, "message_sent", node.node_key, {
-          node_type: "collect_input",
-          whatsapp_message_id,
-        });
+        let whatsapp_message_id: string;
+        if (cfg.input_mode === "options" && (cfg.options?.length ?? 0) > 0) {
+          whatsapp_message_id = await sendCollectOptionsAndSuspend(
+            db,
+            run,
+            node,
+            contact,
+            cfg,
+          );
+        } else {
+          const sentText = await engineSendText({
+            accountId: run.account_id,
+            userId: run.user_id,
+            conversationId: run.conversation_id!,
+            contactId: run.contact_id!,
+            text: interpolateVars(cfg.prompt_text, run.vars, contact),
+          });
+          whatsapp_message_id = sentText.whatsapp_message_id;
+          await logEvent(db, run.id, "message_sent", node.node_key, {
+            node_type: "collect_input",
+            whatsapp_message_id,
+          });
+        }
         const { data: msg } = await db
           .from("messages")
           .select("id")
@@ -1044,6 +1099,50 @@ async function handleReplyForActiveRun(
       currentNode.node_type === "send_list")
   ) {
     matched = matchReplyId(currentNode, message.reply_id);
+    if (matched && currentNode.node_type === "send_list") {
+      const cfg = currentNode.config as unknown as SendListNodeConfig;
+      if (cfg.capture_var_key) {
+        const selected = cfg.sections
+          ?.flatMap((section) => section.rows ?? [])
+          .find((row) => row.reply_id === message.reply_id);
+        const newVars = {
+          ...run.vars,
+          [cfg.capture_var_key]: selected?.title ?? message.reply_id,
+        };
+        const { error } = await db
+          .from("flow_runs")
+          .update({ vars: newVars })
+          .eq("id", run.id);
+        if (!error) {
+          run.vars = newVars;
+          await logEvent(db, run.id, "node_entered", currentNode.node_key, {
+            captured_key: cfg.capture_var_key,
+            captured_value: selected?.title ?? message.reply_id,
+          });
+        }
+      }
+    }
+  } else if (
+    message.kind === "interactive_reply" &&
+    currentNode.node_type === "collect_input"
+  ) {
+    const cfg = currentNode.config as unknown as CollectInputNodeConfig;
+    const option = (cfg.options ?? []).find(
+      (item) => item.reply_id === message.reply_id,
+    );
+    if (option && cfg.var_key) {
+      const captured = option.value?.trim() || option.title;
+      const newVars = { ...run.vars, [cfg.var_key]: captured };
+      const { error } = await db
+        .from("flow_runs")
+        .update({ vars: newVars, reprompt_count: 0 })
+        .eq("id", run.id);
+      if (!error) {
+        run.vars = newVars;
+        run.reprompt_count = 0;
+        matched = cfg.next_node_key;
+      }
+    }
   } else if (
     message.kind === "text" &&
     currentNode.node_type === "collect_input"
@@ -1129,13 +1228,17 @@ async function handleReplyForActiveRun(
       // or var_key missing — rare). Re-send the prompt so they try again.
       const cfg = currentNode.config as unknown as CollectInputNodeConfig;
       try {
-        await engineSendText({
-          accountId: run.account_id,
-    userId: run.user_id,
-          conversationId: run.conversation_id!,
-          contactId: run.contact_id!,
-          text: interpolateVars(cfg.prompt_text, run.vars, contact),
-        });
+        if (cfg.input_mode === "options" && (cfg.options?.length ?? 0) > 0) {
+          await sendCollectOptionsAndSuspend(db, run, currentNode, contact, cfg);
+        } else {
+          await engineSendText({
+            accountId: run.account_id,
+            userId: run.user_id,
+            conversationId: run.conversation_id!,
+            contactId: run.contact_id!,
+            text: interpolateVars(cfg.prompt_text, run.vars, contact),
+          });
+        }
       } catch (err) {
         await logEvent(db, run.id, "error", currentNode.node_key, {
           reason: "reprompt_send_failed",
