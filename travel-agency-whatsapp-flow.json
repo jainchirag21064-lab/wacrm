@@ -1,0 +1,1321 @@
+{
+  "format": "wacrm-flow",
+  "version": 1,
+  "flow": {
+    "name": "Travel Agency WhatsApp Assistant",
+    "description": "Deterministic menu-driven travel assistant for trip planning, packages, flights, hotels, bookings, travel services, support, and human handoff.",
+    "trigger_type": "keyword",
+    "trigger_config": {
+      "keywords": ["hi", "hello", "hey", "travel", "help"],
+      "match_type": "contains",
+      "case_sensitive": false
+    },
+    "entry_node_id": "start",
+    "fallback_policy": {
+      "on_unknown_reply": "reprompt",
+      "max_reprompts": 2,
+      "on_timeout_hours": 24,
+      "on_exhaust": "handoff"
+    }
+  },
+  "nodes": [
+    {
+      "node_key": "start",
+      "node_type": "start",
+      "config": { "next_node_key": "welcome_message" },
+      "position_x": 0,
+      "position_y": 0
+    },
+    {
+      "node_key": "welcome_message",
+      "node_type": "send_message",
+      "config": {
+        "message_type": "text",
+        "text": "👋 Welcome to [Travel Agency Name]! ✈️🌍\n\nWe're here to help you plan your journey and assist with all your travel needs.",
+        "next_node_key": "main_menu"
+      },
+      "position_x": 0,
+      "position_y": 180
+    },
+    {
+      "node_key": "main_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "How can we help you today?",
+        "button_label": "View options",
+        "capture_var_key": "main_intent",
+        "sections": [
+          {
+            "title": "Travel assistance",
+            "rows": [
+              { "reply_id": "plan_explore", "title": "🌍 Plan & Explore Travel", "next_node_key": "plan_menu" },
+              { "reply_id": "manage_booking", "title": "📋 Manage Booking", "next_node_key": "booking_menu" },
+              { "reply_id": "travel_services", "title": "🛂 Travel Services", "next_node_key": "services_menu" },
+              { "reply_id": "help_support", "title": "💬 Help & Support", "next_node_key": "support_menu" },
+              { "reply_id": "speak_expert", "title": "👨‍💼 Speak to Expert", "next_node_key": "expert_menu" }
+            ]
+          }
+        ]
+      },
+      "position_x": 0,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "✈️ What would you like help with?",
+        "button_label": "Choose travel help",
+        "capture_var_key": "plan_intent",
+        "sections": [
+          {
+            "title": "Plan and explore",
+            "rows": [
+              { "reply_id": "new_trip", "title": "🗺️ Plan a New Trip", "next_node_key": "plan_trip_type" },
+              { "reply_id": "packages", "title": "🎁 Holiday Packages", "next_node_key": "package_menu" },
+              { "reply_id": "recommendation", "title": "💡 Choose Destination", "next_node_key": "destination_recommendation" },
+              { "reply_id": "flights", "title": "✈️ Flights Only", "next_node_key": "flight_flow" },
+              { "reply_id": "hotels", "title": "🏨 Hotels Only", "next_node_key": "hotel_flow" },
+              { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" },
+              { "reply_id": "expert", "title": "👨‍💼 Speak to Expert", "next_node_key": "expert_menu" }
+            ]
+          }
+        ]
+      },
+      "position_x": 320,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_trip_type",
+      "node_type": "send_list",
+      "config": {
+        "text": "What type of trip are you planning?",
+        "button_label": "Choose trip type",
+        "capture_var_key": "trip_type",
+        "sections": [
+          {
+            "title": "Trip type",
+            "rows": [
+              { "reply_id": "family", "title": "👨‍👩‍👧 Family Holiday", "next_node_key": "plan_destination_choice" },
+              { "reply_id": "honeymoon", "title": "💑 Honeymoon", "next_node_key": "plan_destination_choice" },
+              { "reply_id": "couple", "title": "❤️ Couple Trip", "next_node_key": "plan_destination_choice" },
+              { "reply_id": "group", "title": "👥 Group Trip", "next_node_key": "plan_destination_choice" },
+              { "reply_id": "business", "title": "💼 Business Travel", "next_node_key": "plan_destination_choice" },
+              { "reply_id": "other", "title": "🎉 Other", "next_node_key": "plan_destination_choice" },
+              { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "plan_menu" },
+              { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+            ]
+          }
+        ]
+      },
+      "position_x": 640,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_destination_choice",
+      "node_type": "send_buttons",
+      "config": {
+        "text": "Do you already have a destination in mind?",
+        "buttons": [
+          { "reply_id": "known_destination", "title": "Yes, I know where", "next_node_key": "plan_destination" },
+          { "reply_id": "choose_destination", "title": "Help me choose", "next_node_key": "destination_recommendation" },
+          { "reply_id": "main_menu", "title": "Main Menu", "next_node_key": "main_menu" }
+        ]
+      },
+      "position_x": 960,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_destination",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Great! Which destination(s) would you like to visit?\n\nExample: Switzerland, Paris and Italy",
+        "var_key": "destination",
+        "input_mode": "text",
+        "next_node_key": "plan_departure"
+      },
+      "position_x": 1280,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_departure",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "✈️ Which city or airport will you be travelling from?",
+        "var_key": "departure_city",
+        "input_mode": "text",
+        "next_node_key": "plan_dates_choice"
+      },
+      "position_x": 1600,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_dates_choice",
+      "node_type": "send_list",
+      "config": {
+        "text": "📅 When are you planning to travel?",
+        "button_label": "Choose dates",
+        "capture_var_key": "date_preference",
+        "sections": [
+          {
+            "title": "Travel dates",
+            "rows": [
+              { "reply_id": "exact", "title": "📆 Exact Dates", "next_node_key": "plan_exact_dates" },
+              { "reply_id": "approximate", "title": "🗓 Approximate Month", "next_node_key": "plan_approx_dates" },
+              { "reply_id": "flexible", "title": "🔄 Dates Flexible", "next_node_key": "plan_duration" },
+              { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "plan_departure" },
+              { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+            ]
+          }
+        ]
+      },
+      "position_x": 1920,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_exact_dates",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Please provide your preferred departure and return dates.\n\nExample: 10 December 2026 to 20 December 2026",
+        "var_key": "travel_dates",
+        "input_mode": "text",
+        "next_node_key": "plan_duration"
+      },
+      "position_x": 2240,
+      "position_y": 280
+    },
+    {
+      "node_key": "plan_approx_dates",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Which month or approximate period are you planning to travel?",
+        "var_key": "travel_dates",
+        "input_mode": "text",
+        "next_node_key": "plan_duration"
+      },
+      "position_x": 2240,
+      "position_y": 440
+    },
+    {
+      "node_key": "plan_duration",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "⏳ How long would you like your trip to be?",
+        "var_key": "trip_duration",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "days_1_3", "title": "1–3 Days", "value": "1-3 days" },
+          { "reply_id": "days_4_6", "title": "4–6 Days", "value": "4-6 days" },
+          { "reply_id": "days_7_10", "title": "7–10 Days", "value": "7-10 days" },
+          { "reply_id": "days_11_14", "title": "11–14 Days", "value": "11-14 days" },
+          { "reply_id": "days_over_14", "title": "More than 14 Days", "value": "more than 14 days" },
+          { "reply_id": "not_sure", "title": "Not Sure Yet", "value": "not sure" }
+        ],
+        "next_node_key": "plan_travellers"
+      },
+      "position_x": 2560,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_travellers",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "👨‍👩‍👧‍👦 Please tell us who will be travelling.\n\nMention the number of adults, children, and ages of children if applicable.\n\nExample: 2 adults and 2 children aged 5 and 8",
+        "var_key": "travellers",
+        "input_mode": "text",
+        "next_node_key": "plan_budget"
+      },
+      "position_x": 2880,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_budget",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "💰 What is your approximate trip budget?",
+        "var_key": "budget",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "budget_friendly", "title": "💵 Budget Friendly", "value": "budget friendly" },
+          { "reply_id": "mid_range", "title": "✨ Mid-Range", "value": "mid-range" },
+          { "reply_id": "premium", "title": "⭐ Premium", "value": "premium" },
+          { "reply_id": "luxury", "title": "👑 Luxury", "value": "luxury" },
+          { "reply_id": "budget_unknown", "title": "🤔 Not Decided Yet", "value": "not decided" }
+        ],
+        "next_node_key": "plan_accommodation"
+      },
+      "position_x": 3200,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_accommodation",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "🏨 What type of accommodation do you prefer?",
+        "var_key": "accommodation",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "comfortable", "title": "⭐⭐⭐ Comfortable", "value": "comfortable" },
+          { "reply_id": "premium", "title": "⭐⭐⭐⭐ Premium", "value": "premium" },
+          { "reply_id": "luxury", "title": "⭐⭐⭐⭐⭐ Luxury", "value": "luxury" },
+          { "reply_id": "villa", "title": "🏡 Apartment / Villa", "value": "apartment or villa" },
+          { "reply_id": "open", "title": "🤔 Open to Suggestions", "value": "open to suggestions" }
+        ],
+        "next_node_key": "plan_preferences"
+      },
+      "position_x": 3520,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_preferences",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "🎯 What would you like to experience during your trip?\n\nExamples: Beaches, Nature, Sightseeing, Theme Parks, Shopping, Culture, Adventure, Food Experiences",
+        "var_key": "trip_preferences",
+        "input_mode": "text",
+        "next_node_key": "plan_special_requirements"
+      },
+      "position_x": 3840,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_special_requirements",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "✨ Do you have any special requirements?\n\nExamples: Direct flights, vegetarian meals, child-friendly hotels, wheelchair accessibility, anniversary celebration.\n\nType No if none.",
+        "var_key": "special_requirements",
+        "input_mode": "text",
+        "next_node_key": "plan_complete"
+      },
+      "position_x": 4160,
+      "position_y": 360
+    },
+    {
+      "node_key": "plan_complete",
+      "node_type": "send_message",
+      "config": {
+        "message_type": "text",
+        "text": "🎉 Thank you!\n\nWe have received your travel requirements. Our travel expert will review your request and get back to you with suitable options. ✈️🌍",
+        "next_node_key": "expert_handoff"
+      },
+      "position_x": 4480,
+      "position_y": 360
+    },
+    {
+      "node_key": "package_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "🎁 How would you like to explore our holiday packages?",
+        "button_label": "Explore packages",
+        "capture_var_key": "package_search_type",
+        "sections": [
+          {
+            "title": "Package discovery",
+            "rows": [
+              { "reply_id": "by_destination", "title": "🌍 By Destination", "next_node_key": "package_region" },
+              { "reply_id": "by_budget", "title": "💰 By Budget", "next_node_key": "package_budget" },
+              { "reply_id": "by_month", "title": "📅 By Travel Month", "next_node_key": "package_month" },
+              { "reply_id": "offers", "title": "🔥 Special Offers", "next_node_key": "package_offers" },
+              { "reply_id": "help_choose", "title": "💡 Help Me Choose", "next_node_key": "destination_recommendation" },
+              { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+            ]
+          }
+        ]
+      },
+      "position_x": 640,
+      "position_y": 900
+    },
+    {
+      "node_key": "package_region",
+      "node_type": "send_list",
+      "config": {
+        "text": "Which region interests you?",
+        "button_label": "Choose region",
+        "capture_var_key": "package_region",
+        "sections": [
+          {
+            "title": "Regions",
+            "rows": [
+              { "reply_id": "europe", "title": "🇪🇺 Europe", "next_node_key": "package_europe" },
+              { "reply_id": "asia", "title": "🌏 Asia", "next_node_key": "package_asia" },
+              { "reply_id": "islands", "title": "🏝 Maldives & Islands", "next_node_key": "package_islands" },
+              { "reply_id": "middle_east", "title": "🏜 Middle East", "next_node_key": "package_middle_east" },
+              { "reply_id": "africa", "title": "🦁 Africa", "next_node_key": "package_africa" },
+              { "reply_id": "americas", "title": "🌎 Americas", "next_node_key": "package_americas" },
+              { "reply_id": "other", "title": "📍 Other Destination", "next_node_key": "package_other_destination" },
+              { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_menu" },
+              { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+            ]
+          }
+        ]
+      },
+      "position_x": 960,
+      "position_y": 900
+    },
+    {
+      "node_key": "package_europe",
+      "node_type": "send_list",
+      "config": {
+        "text": "🇪🇺 Which destination interests you?",
+        "button_label": "Choose destination",
+        "capture_var_key": "package_destination",
+        "sections": [{ "title": "Europe", "rows": [
+          { "reply_id": "switzerland", "title": "🇨🇭 Switzerland", "next_node_key": "package_interest" },
+          { "reply_id": "france", "title": "🇫🇷 France", "next_node_key": "package_interest" },
+          { "reply_id": "italy", "title": "🇮🇹 Italy", "next_node_key": "package_interest" },
+          { "reply_id": "spain", "title": "🇪🇸 Spain", "next_node_key": "package_interest" },
+          { "reply_id": "greece", "title": "🇬🇷 Greece", "next_node_key": "package_interest" },
+          { "reply_id": "multi_country", "title": "🌍 Multi-Country Europe", "next_node_key": "package_interest" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_region" }
+        ]}]
+      },
+      "position_x": 1280,
+      "position_y": 900
+    },
+    {
+      "node_key": "package_asia",
+      "node_type": "send_list",
+      "config": {
+        "text": "🌏 Which destination interests you?",
+        "button_label": "Choose destination",
+        "capture_var_key": "package_destination",
+        "sections": [{ "title": "Asia", "rows": [
+          { "reply_id": "thailand", "title": "🇹🇭 Thailand", "next_node_key": "package_interest" },
+          { "reply_id": "bali", "title": "🇮🇩 Bali", "next_node_key": "package_interest" },
+          { "reply_id": "singapore", "title": "🇸🇬 Singapore", "next_node_key": "package_interest" },
+          { "reply_id": "japan", "title": "🇯🇵 Japan", "next_node_key": "package_interest" },
+          { "reply_id": "vietnam", "title": "🇻🇳 Vietnam", "next_node_key": "package_interest" },
+          { "reply_id": "sri_lanka", "title": "🇱🇰 Sri Lanka", "next_node_key": "package_interest" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_region" }
+        ]}]
+      },
+      "position_x": 1280,
+      "position_y": 1060
+    },
+    {
+      "node_key": "package_islands",
+      "node_type": "send_list",
+      "config": {
+        "text": "🏝 Which island destination interests you?",
+        "button_label": "Choose destination",
+        "capture_var_key": "package_destination",
+        "sections": [{ "title": "Islands", "rows": [
+          { "reply_id": "maldives", "title": "🇲🇻 Maldives", "next_node_key": "package_interest" },
+          { "reply_id": "seychelles", "title": "🇸🇨 Seychelles", "next_node_key": "package_interest" },
+          { "reply_id": "mauritius", "title": "🇲🇺 Mauritius", "next_node_key": "package_interest" },
+          { "reply_id": "other_island", "title": "🏝 Other Island", "next_node_key": "package_other_destination" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_region" }
+        ]}]
+      },
+      "position_x": 1280,
+      "position_y": 1220
+    },
+    {
+      "node_key": "package_middle_east",
+      "node_type": "send_list",
+      "config": {
+        "text": "🏜 Which Middle East destination interests you?",
+        "button_label": "Choose destination",
+        "capture_var_key": "package_destination",
+        "sections": [{ "title": "Middle East", "rows": [
+          { "reply_id": "dubai", "title": "🇦🇪 Dubai", "next_node_key": "package_interest" },
+          { "reply_id": "oman", "title": "🇴🇲 Oman", "next_node_key": "package_interest" },
+          { "reply_id": "qatar", "title": "🇶🇦 Qatar", "next_node_key": "package_interest" },
+          { "reply_id": "other_middle_east", "title": "🏜 Other", "next_node_key": "package_other_destination" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_region" }
+        ]}]
+      },
+      "position_x": 1280,
+      "position_y": 1380
+    },
+    {
+      "node_key": "package_africa",
+      "node_type": "send_list",
+      "config": {
+        "text": "🦁 Which African destination interests you?",
+        "button_label": "Choose destination",
+        "capture_var_key": "package_destination",
+        "sections": [{ "title": "Africa", "rows": [
+          { "reply_id": "south_africa", "title": "🇿🇦 South Africa", "next_node_key": "package_interest" },
+          { "reply_id": "kenya", "title": "🇰🇪 Kenya", "next_node_key": "package_interest" },
+          { "reply_id": "tanzania", "title": "🇹🇿 Tanzania", "next_node_key": "package_interest" },
+          { "reply_id": "other_africa", "title": "🦁 Other", "next_node_key": "package_other_destination" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_region" }
+        ]}]
+      },
+      "position_x": 1280,
+      "position_y": 1540
+    },
+    {
+      "node_key": "package_americas",
+      "node_type": "send_list",
+      "config": {
+        "text": "🌎 Which Americas destination interests you?",
+        "button_label": "Choose destination",
+        "capture_var_key": "package_destination",
+        "sections": [{ "title": "Americas", "rows": [
+          { "reply_id": "usa", "title": "🇺🇸 USA", "next_node_key": "package_interest" },
+          { "reply_id": "canada", "title": "🇨🇦 Canada", "next_node_key": "package_interest" },
+          { "reply_id": "mexico", "title": "🇲🇽 Mexico", "next_node_key": "package_interest" },
+          { "reply_id": "other_americas", "title": "🌎 Other", "next_node_key": "package_other_destination" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "package_region" }
+        ]}]
+      },
+      "position_x": 1280,
+      "position_y": 1700
+    },
+    {
+      "node_key": "package_other_destination",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Which destination are you interested in?",
+        "var_key": "package_destination",
+        "input_mode": "text",
+        "next_node_key": "package_interest"
+      },
+      "position_x": 1600,
+      "position_y": 1100
+    },
+    {
+      "node_key": "package_budget",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "What budget range are you considering?",
+        "var_key": "package_budget",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "budget_friendly", "title": "💵 Budget Friendly", "value": "budget friendly" },
+          { "reply_id": "mid_range", "title": "✨ Mid-Range", "value": "mid-range" },
+          { "reply_id": "premium", "title": "⭐ Premium", "value": "premium" },
+          { "reply_id": "luxury", "title": "👑 Luxury", "value": "luxury" }
+        ],
+        "next_node_key": "package_interest"
+      },
+      "position_x": 1280,
+      "position_y": 1860
+    },
+    {
+      "node_key": "package_month",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "When are you planning to travel?",
+        "var_key": "package_travel_month",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "q1", "title": "Jan – Mar", "value": "January to March" },
+          { "reply_id": "q2", "title": "Apr – Jun", "value": "April to June" },
+          { "reply_id": "q3", "title": "Jul – Sep", "value": "July to September" },
+          { "reply_id": "q4", "title": "Oct – Dec", "value": "October to December" },
+          { "reply_id": "flexible", "title": "Flexible", "value": "flexible" }
+        ],
+        "next_node_key": "package_interest"
+      },
+      "position_x": 1280,
+      "position_y": 2020
+    },
+    {
+      "node_key": "package_offers",
+      "node_type": "send_message",
+      "config": {
+        "message_type": "text",
+        "text": "🔥 Check out our latest special offers!\n\nOur travel expert can help you find the best available deal.",
+        "next_node_key": "package_interest"
+      },
+      "position_x": 1280,
+      "position_y": 2180
+    },
+    {
+      "node_key": "package_interest",
+      "node_type": "send_list",
+      "config": {
+        "text": "What would you like to do next?",
+        "button_label": "Choose an option",
+        "capture_var_key": "package_next_step",
+        "sections": [{ "title": "Package enquiry", "rows": [
+          { "reply_id": "details", "title": "📦 Get Package Details", "next_node_key": "package_details" },
+          { "reply_id": "customize", "title": "✏️ Customize a Package", "next_node_key": "plan_destination_choice" },
+          { "reply_id": "expert", "title": "👨‍💼 Speak to Expert", "next_node_key": "expert_menu" },
+          { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+        ]}]
+      },
+      "position_x": 1920,
+      "position_y": 1100
+    },
+    {
+      "node_key": "package_details",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Please tell us which destination or package you would like more information about.",
+        "var_key": "package_details_request",
+        "input_mode": "text",
+        "next_node_key": "expert_handoff"
+      },
+      "position_x": 2240,
+      "position_y": 1100
+    },
+    {
+      "node_key": "destination_recommendation",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "📅 When would you like to travel?",
+        "var_key": "recommendation_month",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "q1", "title": "Jan – Mar", "value": "January to March" },
+          { "reply_id": "q2", "title": "Apr – Jun", "value": "April to June" },
+          { "reply_id": "q3", "title": "Jul – Sep", "value": "July to September" },
+          { "reply_id": "q4", "title": "Oct – Dec", "value": "October to December" },
+          { "reply_id": "flexible", "title": "Flexible", "value": "flexible" }
+        ],
+        "next_node_key": "recommendation_duration"
+      },
+      "position_x": 640,
+      "position_y": 2500
+    },
+    {
+      "node_key": "recommendation_duration",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "⏳ How long would you like your trip to be?",
+        "var_key": "recommendation_duration",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "3_5", "title": "3–5 Days", "value": "3-5 days" },
+          { "reply_id": "6_8", "title": "6–8 Days", "value": "6-8 days" },
+          { "reply_id": "9_12", "title": "9–12 Days", "value": "9-12 days" },
+          { "reply_id": "13_plus", "title": "13+ Days", "value": "13+ days" }
+        ],
+        "next_node_key": "recommendation_companions"
+      },
+      "position_x": 960,
+      "position_y": 2500
+    },
+    {
+      "node_key": "recommendation_companions",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Who will you be travelling with?",
+        "var_key": "recommendation_companions",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "solo", "title": "🙋 Solo", "value": "solo" },
+          { "reply_id": "couple", "title": "❤️ Couple", "value": "couple" },
+          { "reply_id": "family", "title": "👨‍👩‍👧 Family", "value": "family" },
+          { "reply_id": "friends", "title": "👯 Friends", "value": "friends" },
+          { "reply_id": "group", "title": "👥 Group", "value": "group" }
+        ],
+        "next_node_key": "recommendation_experience"
+      },
+      "position_x": 1280,
+      "position_y": 2500
+    },
+    {
+      "node_key": "recommendation_experience",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "What type of experience are you looking for?",
+        "var_key": "recommendation_experience",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "beach", "title": "🏖 Beach & Relaxation", "value": "beach and relaxation" },
+          { "reply_id": "nature", "title": "🏔 Nature & Scenery", "value": "nature and scenery" },
+          { "reply_id": "culture", "title": "🏙 Cities & Culture", "value": "cities and culture" },
+          { "reply_id": "family_fun", "title": "🎢 Family Fun", "value": "family fun" },
+          { "reply_id": "adventure", "title": "🧗 Adventure", "value": "adventure" },
+          { "reply_id": "luxury", "title": "💎 Luxury", "value": "luxury" },
+          { "reply_id": "mix", "title": "🌍 Mix of Everything", "value": "mix of everything" }
+        ],
+        "next_node_key": "recommendation_budget"
+      },
+      "position_x": 1600,
+      "position_y": 2500
+    },
+    {
+      "node_key": "recommendation_budget",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "What is your approximate budget preference?",
+        "var_key": "recommendation_budget",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "budget", "title": "💵 Budget Friendly", "value": "budget friendly" },
+          { "reply_id": "mid", "title": "✨ Mid-Range", "value": "mid-range" },
+          { "reply_id": "premium", "title": "⭐ Premium", "value": "premium" },
+          { "reply_id": "luxury", "title": "👑 Luxury", "value": "luxury" },
+          { "reply_id": "flexible", "title": "🤔 Flexible", "value": "flexible" }
+        ],
+        "next_node_key": "recommendation_complete"
+      },
+      "position_x": 1920,
+      "position_y": 2500
+    },
+    {
+      "node_key": "recommendation_complete",
+      "node_type": "send_message",
+      "config": {
+        "message_type": "text",
+        "text": "Thank you! 🌍\n\nBased on your preferences, our travel experts will help recommend the perfect destination and itinerary for you.",
+        "next_node_key": "expert_handoff"
+      },
+      "position_x": 2240,
+      "position_y": 2500
+    },
+    {
+      "node_key": "flight_flow",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "🛫 Which city or airport will you be flying from?",
+        "var_key": "flight_departure",
+        "input_mode": "text",
+        "next_node_key": "flight_destination"
+      },
+      "position_x": 640,
+      "position_y": 3100
+    },
+    {
+      "node_key": "flight_destination",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "🛬 Where would you like to fly?",
+        "var_key": "flight_destination",
+        "input_mode": "text",
+        "next_node_key": "flight_type"
+      },
+      "position_x": 960,
+      "position_y": 3100
+    },
+    {
+      "node_key": "flight_type",
+      "node_type": "send_buttons",
+      "config": {
+        "text": "What type of journey is this?",
+        "buttons": [
+          { "reply_id": "one_way", "title": "One Way", "next_node_key": "flight_one_way_date" },
+          { "reply_id": "round_trip", "title": "Round Trip", "next_node_key": "flight_round_trip_dates" },
+          { "reply_id": "main_menu", "title": "Main Menu", "next_node_key": "main_menu" }
+        ]
+      },
+      "position_x": 1280,
+      "position_y": 3100
+    },
+    {
+      "node_key": "flight_one_way_date",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Please provide your travel date.",
+        "var_key": "flight_dates",
+        "input_mode": "text",
+        "next_node_key": "flight_passengers"
+      },
+      "position_x": 1600,
+      "position_y": 3020
+    },
+    {
+      "node_key": "flight_round_trip_dates",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Please provide your departure and return dates.",
+        "var_key": "flight_dates",
+        "input_mode": "text",
+        "next_node_key": "flight_passengers"
+      },
+      "position_x": 1600,
+      "position_y": 3180
+    },
+    {
+      "node_key": "flight_passengers",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "How many passengers will be travelling? Please mention adults and children.",
+        "var_key": "flight_passengers",
+        "input_mode": "text",
+        "next_node_key": "flight_class"
+      },
+      "position_x": 1920,
+      "position_y": 3100
+    },
+    {
+      "node_key": "flight_class",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "What cabin class do you prefer?",
+        "var_key": "flight_class",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "economy", "title": "Economy", "value": "economy" },
+          { "reply_id": "premium_economy", "title": "Premium Economy", "value": "premium economy" },
+          { "reply_id": "business", "title": "Business", "value": "business" },
+          { "reply_id": "first", "title": "First Class", "value": "first class" },
+          { "reply_id": "flexible", "title": "Flexible", "value": "flexible" }
+        ],
+        "next_node_key": "flight_preferences"
+      },
+      "position_x": 2240,
+      "position_y": 3100
+    },
+    {
+      "node_key": "flight_preferences",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Any airline preference or special requirements? Type No if none.",
+        "var_key": "flight_preferences",
+        "input_mode": "text",
+        "next_node_key": "flight_complete"
+      },
+      "position_x": 2560,
+      "position_y": 3100
+    },
+    {
+      "node_key": "flight_complete",
+      "node_type": "send_message",
+      "config": {
+        "message_type": "text",
+        "text": "Thank you! ✈️\n\nYour flight enquiry has been received. Our team will get back to you with suitable options.",
+        "next_node_key": "expert_handoff"
+      },
+      "position_x": 2880,
+      "position_y": 3100
+    },
+    {
+      "node_key": "hotel_flow",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "📍 Which city or destination are you looking for?",
+        "var_key": "hotel_destination",
+        "input_mode": "text",
+        "next_node_key": "hotel_dates"
+      },
+      "position_x": 640,
+      "position_y": 3700
+    },
+    {
+      "node_key": "hotel_dates",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "📅 Please provide your check-in and check-out dates.",
+        "var_key": "hotel_dates",
+        "input_mode": "text",
+        "next_node_key": "hotel_guests"
+      },
+      "position_x": 960,
+      "position_y": 3700
+    },
+    {
+      "node_key": "hotel_guests",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "👨‍👩‍👧 How many guests will be staying? Please mention adults, children, and ages of children.",
+        "var_key": "hotel_guests",
+        "input_mode": "text",
+        "next_node_key": "hotel_category"
+      },
+      "position_x": 1280,
+      "position_y": 3700
+    },
+    {
+      "node_key": "hotel_category",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "🏨 What hotel category do you prefer?",
+        "var_key": "hotel_category",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "three_star", "title": "⭐⭐⭐ 3 Star", "value": "3 star" },
+          { "reply_id": "four_star", "title": "⭐⭐⭐⭐ 4 Star", "value": "4 star" },
+          { "reply_id": "five_star", "title": "⭐⭐⭐⭐⭐ 5 Star", "value": "5 star" },
+          { "reply_id": "villa", "title": "🏡 Apartment / Villa", "value": "apartment or villa" },
+          { "reply_id": "open", "title": "🤔 Open to Suggestions", "value": "open to suggestions" }
+        ],
+        "next_node_key": "hotel_preferences"
+      },
+      "position_x": 1600,
+      "position_y": 3700
+    },
+    {
+      "node_key": "hotel_preferences",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Do you have a preferred hotel, area, or special requirement? Type No if none.",
+        "var_key": "hotel_preferences",
+        "input_mode": "text",
+        "next_node_key": "hotel_complete"
+      },
+      "position_x": 1920,
+      "position_y": 3700
+    },
+    {
+      "node_key": "hotel_complete",
+      "node_type": "send_message",
+      "config": {
+        "message_type": "text",
+        "text": "Thank you! 🏨\n\nYour hotel enquiry has been received. Our team will get back to you with suitable options.",
+        "next_node_key": "expert_handoff"
+      },
+      "position_x": 2240,
+      "position_y": 3700
+    },
+    {
+      "node_key": "booking_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "📋 How can we help with your existing booking?",
+        "button_label": "Booking help",
+        "capture_var_key": "booking_intent",
+          "sections": [{ "title": "Existing booking", "rows": [
+          { "reply_id": "status", "title": "🔍 Check Booking Status", "next_node_key": "booking_status_reference" },
+          { "reply_id": "modify", "title": "✏️ Modify My Booking", "next_node_key": "booking_modify_reference" },
+          { "reply_id": "cancel", "title": "❌ Cancel My Booking", "next_node_key": "booking_cancel_reference" },
+          { "reply_id": "documents", "title": "📄 Documents & Vouchers", "next_node_key": "booking_documents_reference" },
+          { "reply_id": "flight_info", "title": "✈️ Flight Information", "next_node_key": "booking_flight_reference" },
+          { "reply_id": "other", "title": "💬 Other Booking Issue", "next_node_key": "booking_other_reference" },
+          { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+        ]}]
+      },
+      "position_x": 640,
+      "position_y": 4300
+    },
+    {
+      "node_key": "booking_status_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please enter your booking reference number.", "var_key": "booking_reference", "input_mode": "text", "next_node_key": "booking_status_complete" },
+      "position_x": 960,
+      "position_y": 4300
+    },
+    {
+      "node_key": "booking_status_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you. We have received your booking reference. Our team will check the booking status and update you shortly.", "next_node_key": "expert_handoff" },
+      "position_x": 1280,
+      "position_y": 4300
+    },
+    {
+      "node_key": "booking_modify_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please enter your booking reference number.", "var_key": "booking_reference", "input_mode": "text", "next_node_key": "booking_modify_type" },
+      "position_x": 960,
+      "position_y": 4460
+    },
+    {
+      "node_key": "booking_modify_type",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "What would you like to modify?",
+        "var_key": "booking_modify_type",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "dates", "title": "📅 Travel Dates", "value": "travel dates" },
+          { "reply_id": "flights", "title": "✈️ Flights", "value": "flights" },
+          { "reply_id": "hotel", "title": "🏨 Hotel", "value": "hotel" },
+          { "reply_id": "travellers", "title": "👥 Traveller Details", "value": "traveller details" },
+          { "reply_id": "package", "title": "📦 Package", "value": "package" },
+          { "reply_id": "other", "title": "🔄 Something Else", "value": "something else" }
+        ],
+        "next_node_key": "booking_modify_details"
+      },
+      "position_x": 1280,
+      "position_y": 4460
+    },
+    {
+      "node_key": "booking_modify_details",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please describe the changes you would like to make.", "var_key": "booking_modify_details", "input_mode": "text", "next_node_key": "booking_modify_complete" },
+      "position_x": 1600,
+      "position_y": 4460
+    },
+    {
+      "node_key": "booking_modify_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Your modification request has been received. Our team will review it and contact you shortly.", "next_node_key": "expert_handoff" },
+      "position_x": 1920,
+      "position_y": 4460
+    },
+    {
+      "node_key": "booking_cancel_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please enter your booking reference number.", "var_key": "booking_reference", "input_mode": "text", "next_node_key": "booking_cancel_reason" },
+      "position_x": 960,
+      "position_y": 4620
+    },
+    {
+      "node_key": "booking_cancel_reason",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Why would you like to cancel?",
+        "var_key": "booking_cancel_reason",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "plans", "title": "Change of Plans", "value": "change of plans" },
+          { "reply_id": "medical", "title": "Medical Reason", "value": "medical reason" },
+          { "reply_id": "visa", "title": "Visa Issue", "value": "visa issue" },
+          { "reply_id": "flight", "title": "Flight Issue", "value": "flight issue" },
+          { "reply_id": "other", "title": "Other", "value": "other" }
+        ],
+        "next_node_key": "booking_cancel_complete"
+      },
+      "position_x": 1280,
+      "position_y": 4620
+    },
+    {
+      "node_key": "booking_cancel_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "We have received your cancellation request. Our team will review the applicable policy and contact you shortly.", "next_node_key": "expert_handoff" },
+      "position_x": 1600,
+      "position_y": 4620
+    },
+    {
+      "node_key": "booking_documents_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please enter your booking reference number.", "var_key": "booking_reference", "input_mode": "text", "next_node_key": "booking_document_type" },
+      "position_x": 960,
+      "position_y": 4780
+    },
+    {
+      "node_key": "booking_document_type",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Which document do you need?",
+        "var_key": "booking_document_type",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "voucher", "title": "📄 Travel Voucher", "value": "travel voucher" },
+          { "reply_id": "ticket", "title": "✈️ Flight Ticket", "value": "flight ticket" },
+          { "reply_id": "hotel_voucher", "title": "🏨 Hotel Voucher", "value": "hotel voucher" },
+          { "reply_id": "invoice", "title": "🧾 Invoice", "value": "invoice" },
+          { "reply_id": "itinerary", "title": "📋 Itinerary", "value": "itinerary" },
+          { "reply_id": "other", "title": "Other Document", "value": "other document" }
+        ],
+        "next_node_key": "booking_documents_complete"
+      },
+      "position_x": 1280,
+      "position_y": 4780
+    },
+    {
+      "node_key": "booking_documents_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you. Your document request has been received. Our team will assist you shortly.", "next_node_key": "expert_handoff" },
+      "position_x": 1600,
+      "position_y": 4780
+    },
+    {
+      "node_key": "booking_flight_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please enter your booking reference number.", "var_key": "booking_reference", "input_mode": "text", "next_node_key": "expert_handoff" },
+      "position_x": 960,
+      "position_y": 4940
+    },
+    {
+      "node_key": "booking_other_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please enter your booking reference number.", "var_key": "booking_reference", "input_mode": "text", "next_node_key": "booking_other_details" },
+      "position_x": 960,
+      "position_y": 5100
+    },
+    {
+      "node_key": "booking_other_details",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please describe the issue you are facing.", "var_key": "booking_issue", "input_mode": "text", "next_node_key": "expert_handoff" },
+      "position_x": 1280,
+      "position_y": 5100
+    },
+    {
+      "node_key": "services_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "🛂 Which travel service do you need?",
+        "button_label": "Choose a service",
+        "capture_var_key": "service_intent",
+        "sections": [{ "title": "Travel services", "rows": [
+          { "reply_id": "visa", "title": "🛂 Visa Services", "next_node_key": "visa_menu" },
+          { "reply_id": "insurance", "title": "🛡 Travel Insurance", "next_node_key": "insurance_destination" },
+          { "reply_id": "transfers", "title": "🚗 Airport Transfers", "next_node_key": "transfer_pickup" },
+          { "reply_id": "activities", "title": "🎟 Activities", "next_node_key": "activities_destination" },
+          { "reply_id": "sim", "title": "📱 SIM / Connectivity", "next_node_key": "sim_destination" },
+          { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+        ]}]
+      },
+      "position_x": 640,
+      "position_y": 5600
+    },
+    {
+      "node_key": "visa_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "🛂 How can we help with your visa?",
+        "button_label": "Visa help",
+        "capture_var_key": "visa_intent",
+        "sections": [{ "title": "Visa assistance", "rows": [
+          { "reply_id": "requirements", "title": "📋 Visa Requirements", "next_node_key": "visa_destination" },
+          { "reply_id": "apply", "title": "📝 Apply for Visa", "next_node_key": "visa_destination" },
+          { "reply_id": "track", "title": "🔍 Track Visa", "next_node_key": "visa_tracking_reference" },
+          { "reply_id": "rejection", "title": "❌ Visa Rejection Help", "next_node_key": "visa_rejection_details" },
+          { "reply_id": "back", "title": "⬅️ Back", "next_node_key": "services_menu" },
+          { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+        ]}]
+      },
+      "position_x": 960,
+      "position_y": 5600
+    },
+    {
+      "node_key": "visa_destination",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Which country are you travelling to?", "var_key": "visa_destination", "input_mode": "text", "next_node_key": "visa_nationality" },
+      "position_x": 1280,
+      "position_y": 5600
+    },
+    {
+      "node_key": "visa_nationality",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What is your nationality or passport country?", "var_key": "visa_nationality", "input_mode": "text", "next_node_key": "visa_travel_date" },
+      "position_x": 1600,
+      "position_y": 5600
+    },
+    {
+      "node_key": "visa_travel_date",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "When are you planning to travel?", "var_key": "visa_travel_date", "input_mode": "text", "next_node_key": "visa_complete" },
+      "position_x": 1920,
+      "position_y": 5600
+    },
+    {
+      "node_key": "visa_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you! 🛂\n\nOur visa expert will review your enquiry and guide you on the next steps.", "next_node_key": "expert_handoff" },
+      "position_x": 2240,
+      "position_y": 5600
+    },
+    {
+      "node_key": "visa_tracking_reference",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please provide your visa application reference number.", "var_key": "visa_reference", "input_mode": "text", "next_node_key": "expert_handoff" },
+      "position_x": 1280,
+      "position_y": 5760
+    },
+    {
+      "node_key": "visa_rejection_details",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please briefly describe your visa situation.", "var_key": "visa_rejection_details", "input_mode": "text", "next_node_key": "expert_handoff" },
+      "position_x": 1280,
+      "position_y": 5920
+    },
+    {
+      "node_key": "insurance_destination",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Where are you travelling to?", "var_key": "insurance_destination", "input_mode": "text", "next_node_key": "insurance_dates" },
+      "position_x": 960,
+      "position_y": 6200
+    },
+    {
+      "node_key": "insurance_dates",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What are your travel dates?", "var_key": "insurance_dates", "input_mode": "text", "next_node_key": "insurance_travellers" },
+      "position_x": 1280,
+      "position_y": 6200
+    },
+    {
+      "node_key": "insurance_travellers",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "How many people are travelling? Please include ages of children.", "var_key": "insurance_travellers", "input_mode": "text", "next_node_key": "insurance_requirements" },
+      "position_x": 1600,
+      "position_y": 6200
+    },
+    {
+      "node_key": "insurance_requirements",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Do you have any special coverage requirements? Type No if none.", "var_key": "insurance_requirements", "input_mode": "text", "next_node_key": "insurance_complete" },
+      "position_x": 1920,
+      "position_y": 6200
+    },
+    {
+      "node_key": "insurance_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you! 🛡\n\nYour travel insurance enquiry has been received.", "next_node_key": "expert_handoff" },
+      "position_x": 2240,
+      "position_y": 6200
+    },
+    {
+      "node_key": "transfer_pickup",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "🚗 What is your pickup location?", "var_key": "transfer_pickup", "input_mode": "text", "next_node_key": "transfer_dropoff" },
+      "position_x": 960,
+      "position_y": 6500
+    },
+    {
+      "node_key": "transfer_dropoff",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What is your drop-off location?", "var_key": "transfer_dropoff", "input_mode": "text", "next_node_key": "transfer_datetime" },
+      "position_x": 1280,
+      "position_y": 6500
+    },
+    {
+      "node_key": "transfer_datetime",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What pickup date and time do you need?", "var_key": "transfer_datetime", "input_mode": "text", "next_node_key": "transfer_passengers" },
+      "position_x": 1600,
+      "position_y": 6500
+    },
+    {
+      "node_key": "transfer_passengers",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "How many passengers will be travelling?", "var_key": "transfer_passengers", "input_mode": "text", "next_node_key": "transfer_luggage" },
+      "position_x": 1920,
+      "position_y": 6500
+    },
+    {
+      "node_key": "transfer_luggage",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "How many luggage bags will you have?", "var_key": "transfer_luggage", "input_mode": "text", "next_node_key": "transfer_flight" },
+      "position_x": 2240,
+      "position_y": 6500
+    },
+    {
+      "node_key": "transfer_flight",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What is your flight number, if applicable? Type No if none.", "var_key": "transfer_flight", "input_mode": "text", "next_node_key": "transfer_complete" },
+      "position_x": 2560,
+      "position_y": 6500
+    },
+    {
+      "node_key": "transfer_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you! 🚗\n\nYour transfer request has been received.", "next_node_key": "expert_handoff" },
+      "position_x": 2880,
+      "position_y": 6500
+    },
+    {
+      "node_key": "activities_destination",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What destination would you like activities for?", "var_key": "activities_destination", "input_mode": "text", "next_node_key": "activities_date" },
+      "position_x": 960,
+      "position_y": 6800
+    },
+    {
+      "node_key": "activities_date",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What date would you like to do the activity?", "var_key": "activities_date", "input_mode": "text", "next_node_key": "activities_travellers" },
+      "position_x": 1280,
+      "position_y": 6800
+    },
+    {
+      "node_key": "activities_travellers",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "How many travellers will participate?", "var_key": "activities_travellers", "input_mode": "text", "next_node_key": "activities_type" },
+      "position_x": 1600,
+      "position_y": 6800
+    },
+    {
+      "node_key": "activities_type",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "What type of activities interest you?",
+        "var_key": "activities_type",
+        "input_mode": "options",
+        "options": [
+          { "reply_id": "sightseeing", "title": "🏙 Sightseeing", "value": "sightseeing" },
+          { "reply_id": "adventure", "title": "🧗 Adventure", "value": "adventure" },
+          { "reply_id": "theme_parks", "title": "🎢 Theme Parks", "value": "theme parks" },
+          { "reply_id": "cruises", "title": "🚢 Cruises", "value": "cruises" },
+          { "reply_id": "shows", "title": "🎭 Shows", "value": "shows" },
+          { "reply_id": "food", "title": "🍽 Food Experiences", "value": "food experiences" },
+          { "reply_id": "other", "title": "Other", "value": "other" }
+        ],
+        "next_node_key": "activities_complete"
+      },
+      "position_x": 1920,
+      "position_y": 6800
+    },
+    {
+      "node_key": "activities_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you! 🎟\n\nWe have received your activity enquiry.", "next_node_key": "expert_handoff" },
+      "position_x": 2240,
+      "position_y": 6800
+    },
+    {
+      "node_key": "sim_destination",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Which destination country or countries will you visit?", "var_key": "sim_destination", "input_mode": "text", "next_node_key": "sim_dates" },
+      "position_x": 960,
+      "position_y": 7100
+    },
+    {
+      "node_key": "sim_dates",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "What are your travel dates or trip duration?", "var_key": "sim_dates", "input_mode": "text", "next_node_key": "sim_complete" },
+      "position_x": 1280,
+      "position_y": 7100
+    },
+    {
+      "node_key": "sim_complete",
+      "node_type": "send_message",
+      "config": { "message_type": "text", "text": "Thank you! 📱\n\nOur team will help you find the best connectivity option.", "next_node_key": "expert_handoff" },
+      "position_x": 1600,
+      "position_y": 7100
+    },
+    {
+      "node_key": "support_menu",
+      "node_type": "send_list",
+      "config": {
+        "text": "💬 What would you like help with?",
+        "button_label": "Choose support",
+        "capture_var_key": "support_intent",
+        "sections": [{ "title": "Help and support", "rows": [
+          { "reply_id": "destination_info", "title": "🌦 Destination Info", "next_node_key": "support_destination" },
+          { "reply_id": "best_time", "title": "📅 Best Time to Visit", "next_node_key": "support_destination" },
+          { "reply_id": "currency", "title": "💱 Currency Information", "next_node_key": "support_destination" },
+          { "reply_id": "travel_tips", "title": "🧳 Travel Tips", "next_node_key": "support_destination" },
+          { "reply_id": "other", "title": "❓ Other Question", "next_node_key": "support_question" },
+          { "reply_id": "main_menu", "title": "🏠 Main Menu", "next_node_key": "main_menu" }
+        ]}]
+      },
+      "position_x": 640,
+      "position_y": 7500
+    },
+    {
+      "node_key": "support_destination",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Which destination should we help you with?", "var_key": "support_destination", "input_mode": "text", "next_node_key": "expert_handoff" },
+      "position_x": 960,
+      "position_y": 7500
+    },
+    {
+      "node_key": "support_question",
+      "node_type": "collect_input",
+      "config": { "prompt_text": "Please tell us your question.", "var_key": "support_question", "input_mode": "text", "next_node_key": "expert_handoff" },
+      "position_x": 960,
+      "position_y": 7660
+    },
+    {
+      "node_key": "expert_menu",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "👨‍💼 Please tell us what you need help with.\n\nExamples: planning a trip, holiday packages, flights, hotels, visa, existing booking, or something else.",
+        "var_key": "expert_request_type",
+        "input_mode": "text",
+        "next_node_key": "expert_description"
+      },
+      "position_x": 640,
+      "position_y": 8000
+    },
+    {
+      "node_key": "expert_description",
+      "node_type": "collect_input",
+      "config": {
+        "prompt_text": "Please briefly describe your requirement so our travel expert can assist you better.",
+        "var_key": "expert_description",
+        "input_mode": "text",
+        "next_node_key": "expert_handoff"
+      },
+      "position_x": 960,
+      "position_y": 8000
+    },
+    {
+      "node_key": "expert_handoff",
+      "node_type": "handoff",
+      "config": {
+        "note": "TRAVEL ENQUIRY SUMMARY\n\nCustomer: {{contact.name}}\nPhone: {{contact.phone}}\n\nMain intent: {{vars.main_intent}}\nPlan intent: {{vars.plan_intent}}\nTrip type: {{vars.trip_type}}\nDestination: {{vars.destination}}\nDeparture city: {{vars.departure_city}}\nDate preference: {{vars.date_preference}}\nTravel dates: {{vars.travel_dates}}\nTrip duration: {{vars.trip_duration}}\nTravellers: {{vars.travellers}}\nBudget: {{vars.budget}}\nAccommodation: {{vars.accommodation}}\nTrip preferences: {{vars.trip_preferences}}\nSpecial requirements: {{vars.special_requirements}}\n\nPackage search: {{vars.package_search_type}}\nPackage region: {{vars.package_region}}\nPackage destination: {{vars.package_destination}}\nPackage budget: {{vars.package_budget}}\nPackage travel month: {{vars.package_travel_month}}\nPackage request: {{vars.package_details_request}}\n\nFlight departure: {{vars.flight_departure}}\nFlight destination: {{vars.flight_destination}}\nFlight dates: {{vars.flight_dates}}\nPassengers: {{vars.flight_passengers}}\nCabin class: {{vars.flight_class}}\nFlight preferences: {{vars.flight_preferences}}\n\nHotel destination: {{vars.hotel_destination}}\nHotel dates: {{vars.hotel_dates}}\nHotel guests: {{vars.hotel_guests}}\nHotel category: {{vars.hotel_category}}\nHotel preferences: {{vars.hotel_preferences}}\n\nBooking intent: {{vars.booking_intent}}\nBooking reference: {{vars.booking_reference}}\nBooking modification: {{vars.booking_modify_type}}\nModification details: {{vars.booking_modify_details}}\nCancellation reason: {{vars.booking_cancel_reason}}\nDocument requested: {{vars.booking_document_type}}\nBooking issue: {{vars.booking_issue}}\n\nService intent: {{vars.service_intent}}\nVisa intent: {{vars.visa_intent}}\nVisa destination: {{vars.visa_destination}}\nVisa nationality: {{vars.visa_nationality}}\nVisa travel date: {{vars.visa_travel_date}}\nVisa reference: {{vars.visa_reference}}\nVisa rejection details: {{vars.visa_rejection_details}}\nInsurance destination: {{vars.insurance_destination}}\nInsurance dates: {{vars.insurance_dates}}\nInsurance travellers: {{vars.insurance_travellers}}\nInsurance requirements: {{vars.insurance_requirements}}\nTransfer pickup: {{vars.transfer_pickup}}\nTransfer drop-off: {{vars.transfer_dropoff}}\nTransfer date/time: {{vars.transfer_datetime}}\nTransfer passengers: {{vars.transfer_passengers}}\nTransfer luggage: {{vars.transfer_luggage}}\nTransfer flight: {{vars.transfer_flight}}\nActivities destination: {{vars.activities_destination}}\nActivities date: {{vars.activities_date}}\nActivities travellers: {{vars.activities_travellers}}\nActivities type: {{vars.activities_type}}\nSIM destination: {{vars.sim_destination}}\nSIM dates: {{vars.sim_dates}}\n\nSupport intent: {{vars.support_intent}}\nSupport destination: {{vars.support_destination}}\nSupport question: {{vars.support_question}}\nExpert request: {{vars.expert_request_type}}\nExpert description: {{vars.expert_description}}\n\nPlease review the conversation and contact the customer."
+      },
+      "position_x": 1280,
+      "position_y": 8000
+    }
+  ]
+}

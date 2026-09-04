@@ -528,8 +528,12 @@ async function executeHandoff(
   db: AdminClient,
   run: FlowRunRow,
   node: FlowNodeRow,
+  contact: ContactFields | null,
 ): Promise<void> {
   const cfg = node.config as { assign_to?: string; note?: string };
+  const note = cfg.note
+    ? interpolateVars(cfg.note, run.vars, contact)
+    : "";
   const convUpdate: Record<string, unknown> = {
     status: "pending",
     updated_at: new Date().toISOString(),
@@ -542,9 +546,20 @@ async function executeHandoff(
       .eq("id", run.conversation_id);
   }
   await logEvent(db, run.id, "handoff", node.node_key, {
-    note: cfg.note ?? null,
+    note: note || null,
     assigned_to: cfg.assign_to ?? null,
   });
+  if (run.contact_id && note) {
+    const { error } = await db.from("contact_notes").insert({
+      contact_id: run.contact_id,
+      account_id: run.account_id,
+      user_id: run.user_id,
+      note_text: note,
+    });
+    if (error) {
+      console.error("[flows] handoff contact note insert error:", error.message);
+    }
+  }
   await endRun(db, run.id, "handed_off", "handoff_node");
 }
 
@@ -933,7 +948,7 @@ async function advanceFromNodeKey(
       return { outcome: "advanced" };
     }
     if (node.node_type === "handoff") {
-      await executeHandoff(db, run, node);
+      await executeHandoff(db, run, node, contact);
       return { outcome: "handed_off" };
     }
     if (node.node_type === "end") {
