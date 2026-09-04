@@ -532,7 +532,7 @@ async function executeHandoff(
 ): Promise<void> {
   const cfg = node.config as { assign_to?: string; note?: string };
   const note = cfg.note
-    ? interpolateVars(cfg.note, run.vars, contact)
+    ? compactHandoffNote(interpolateVars(cfg.note, run.vars, contact))
     : "";
   const convUpdate: Record<string, unknown> = {
     status: "pending",
@@ -561,6 +561,21 @@ async function executeHandoff(
     }
   }
   await endRun(db, run.id, "handed_off", "handoff_node");
+}
+
+function compactHandoffNote(note: string): string {
+  return note
+    .split(/\n\s*\n/)
+    .map((block) =>
+      block
+        .split("\n")
+        .map((line) => line.trimEnd())
+        .filter((line) => !/^.+:\s*$/.test(line))
+        .join("\n")
+        .trim(),
+    )
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /**

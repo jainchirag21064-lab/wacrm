@@ -36,6 +36,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
 
   const fetchContactData = useCallback(async () => {
     if (!contact) return;
@@ -118,6 +119,12 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     }
     setAddingNote(false);
   }, [contact, newNote, accountId]);
+
+  const handleCopyNote = useCallback(async (note: ContactNote) => {
+    await navigator.clipboard.writeText(note.note_text);
+    setCopiedNoteId(note.id);
+    window.setTimeout(() => setCopiedNoteId(null), 2000);
+  }, []);
 
   if (!contact) {
     return (
@@ -285,6 +292,23 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                     key={note.id}
                     className="rounded-lg bg-muted px-3 py-2"
                   >
+                    <div className="mb-1 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => void handleCopyNote(note)}
+                        title="Copy note"
+                        aria-label="Copy note"
+                      >
+                        {copiedNoteId === note.id ? (
+                          <Check className="h-3 w-3 text-primary" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
                     <p className="whitespace-pre-wrap text-xs text-muted-foreground">
                       {note.note_text}
                     </p>
