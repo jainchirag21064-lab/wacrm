@@ -13,8 +13,10 @@ import {
 } from '@/lib/whatsapp/phone-utils'
 import {
   resolveTemplateRow,
+  templateBodyParams,
   templateContentText,
 } from '@/lib/whatsapp/template-body'
+import type { SendTimeParams } from '@/lib/whatsapp/template-send-builder'
 import { supabaseAdmin } from './admin-client'
 
 // ------------------------------------------------------------
@@ -50,6 +52,7 @@ interface SendTemplateArgs {
   templateName: string
   language?: string
   params?: string[]
+  messageParams?: SendTimeParams
 }
 
 export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_message_id: string }> {
@@ -171,6 +174,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
         templateName: input.templateName,
         language: input.language,
         params: input.params,
+        messageParams: input.messageParams,
       })
       return r.messageId
     }
@@ -218,7 +222,10 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
   const content_text =
     input.kind === 'text'
       ? input.text
-      : templateContentText(templateRow, input.params ?? [])
+      : templateContentText(
+          templateRow,
+          templateBodyParams(input.params, input.messageParams),
+        )
   const template_name = input.kind === 'template' ? input.templateName : null
 
   const { error: msgErr } = await db.from('messages').insert({

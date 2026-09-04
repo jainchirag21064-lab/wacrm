@@ -98,8 +98,8 @@ export function FlowBuilder() {
   // (matches the previous behaviour where adding always revealed the
   // new card so the user could start editing immediately).
   const addNode = useCallback(
-    (type: NodeType) => {
-      const key = addNodeCtx(type);
+    (type: NodeType, config?: Record<string, unknown>) => {
+      const key = addNodeCtx(type, config);
       setExpanded((prev) => new Set([...prev, key]));
     },
     [addNodeCtx]
@@ -170,7 +170,18 @@ export function FlowBuilder() {
           <h2 className="text-foreground text-sm font-semibold">
             {t('nodesTitle', { count: state.nodes.length })}
           </h2>
-          <AddNodeButton onAdd={addNode} t={t} />
+          <AddNodeButton
+            onAdd={addNode}
+            onAddTemplate={() =>
+              addNode('send_message', {
+                message_type: 'template',
+                template_name: '',
+                template_language: 'en_US',
+                template_params: [],
+              })
+            }
+            t={t}
+          />
         </div>
 
         {state.nodes.length === 0 ? (
@@ -579,7 +590,15 @@ function NodeConfigWithAdvanced({
 // Add-node menu
 // ============================================================
 
-function AddNodeButton({ onAdd, t }: { onAdd: (type: NodeType) => void; t: ReturnType<typeof useTranslations> }) {
+function AddNodeButton({
+  onAdd,
+  onAddTemplate,
+  t,
+}: {
+  onAdd: (type: NodeType) => void;
+  onAddTemplate: () => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
   const types: NodeType[] = [
     'start',
     'send_buttons',
@@ -616,10 +635,18 @@ function AddNodeButton({ onAdd, t }: { onAdd: (type: NodeType) => void; t: Retur
               {group.types.map((t_type) => {
                 const meta = NODE_META[t_type];
                 return (
-                  <DropdownMenuItem key={t_type} onClick={() => onAdd(t_type)}>
-                    <meta.icon className={cn('h-3.5 w-3.5', meta.color)} />
-                    {t(`nodes.${t_type}.label`)}
-                  </DropdownMenuItem>
+                  <Fragment key={t_type}>
+                    <DropdownMenuItem onClick={() => onAdd(t_type)}>
+                      <meta.icon className={cn('h-3.5 w-3.5', meta.color)} />
+                      {t(`nodes.${t_type}.label`)}
+                    </DropdownMenuItem>
+                    {t_type === 'send_message' && (
+                      <DropdownMenuItem onClick={onAddTemplate}>
+                        <meta.icon className={cn('h-3.5 w-3.5', meta.color)} />
+                        {t('nodes.send_template.label')}
+                      </DropdownMenuItem>
+                    )}
+                  </Fragment>
                 );
               })}
             </DropdownMenuGroup>

@@ -1107,6 +1107,13 @@
         "templateName": "템플릿 이름",
         "templateLanguage": "템플릿 언어",
         "templateParams": "본문 매개변수 (쉼표로 구분)",
+        "selectTemplate": "승인된 템플릿 선택",
+        "loadingTemplates": "템플릿을 불러오는 중…",
+        "noApprovedTemplates": "사용 가능한 승인된 템플릿이 없습니다.",
+        "templateBodyParameters": "본문 매개변수",
+        "templateHeaderParameter": "헤더 매개변수",
+        "templateButtonParameters": "버튼 매개변수",
+        "couponCode": "쿠폰 코드",
         "promptToCustomer": "고객에게 전송되는 질문",
         "varKeyLabel": "변수 키 (flow_runs.vars에 저장됨; 영숫자 + 밑줄만 사용)",
         "varKeyPlaceholder": "예: name, email, company",
@@ -1176,6 +1183,10 @@
         "send_message": {
           "label": "메시지 보내기",
           "blurb": "WhatsApp 텍스트 메시지를 보냅니다"
+        },
+        "send_template": {
+          "label": "템플릿 보내기",
+          "blurb": "승인된 WhatsApp 템플릿을 보냅니다"
         },
         "send_buttons": {
           "label": "버튼 보내기",

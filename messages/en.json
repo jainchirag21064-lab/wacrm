@@ -1107,6 +1107,13 @@
         "templateName": "Template name",
         "templateLanguage": "Template language",
         "templateParams": "Body parameters (comma separated)",
+        "selectTemplate": "Select an approved template",
+        "loadingTemplates": "Loading templates…",
+        "noApprovedTemplates": "No approved templates are available.",
+        "templateBodyParameters": "Body parameters",
+        "templateHeaderParameter": "Header parameter",
+        "templateButtonParameters": "Button parameters",
+        "couponCode": "Coupon code",
         "promptToCustomer": "Prompt sent to the customer",
         "varKeyLabel": "Variable key (stored in flow_runs.vars; alphanumeric + underscore)",
         "varKeyPlaceholder": "e.g. name, email, company",
@@ -1176,6 +1183,10 @@
         "send_message": {
           "label": "Send message",
           "blurb": "Sends a WhatsApp text message"
+        },
+        "send_template": {
+          "label": "Send template",
+          "blurb": "Sends an approved WhatsApp template"
         },
         "send_buttons": {
           "label": "Send buttons",

@@ -708,8 +708,8 @@ function CanvasAddNodeButton({ t }: { t: ReturnType<typeof useTranslations> }) {
   const reactFlow = useReactFlow();
   const { addNode, updateNodePosition } = useFlowEditor();
 
-  const handleAdd = (type: NodeType) => {
-    const key = addNode(type);
+  const handleAdd = (type: NodeType, config?: Record<string, unknown>) => {
+    const key = addNode(type, config);
     // Place the new node at the visible canvas center. The Panel's
     // own DOM lives inside ReactFlow so we can climb up to find the
     // .react-flow root and read its bounding rect. If we can't find
@@ -759,26 +759,55 @@ function CanvasAddNodeButton({ t }: { t: ReturnType<typeof useTranslations> }) {
               {group.types.map((t_type) => {
                 const meta = NODE_META[t_type];
                 return (
-                  <DropdownMenuItem
-                    key={t_type}
-                    onClick={() => handleAdd(t_type)}
-                    className="gap-3 py-2"
-                  >
-                    <NodeIconChip
-                      type={t_type}
-                      size={28}
-                      iconSize={16}
-                      className="rounded-md"
-                    />
-                    <span className="flex flex-col">
-                      <span className="text-popover-foreground text-[13px] font-semibold">
-                        {t(`nodes.${t_type}.label`)}
+                  <Fragment key={t_type}>
+                    <DropdownMenuItem
+                      onClick={() => handleAdd(t_type)}
+                      className="gap-3 py-2"
+                    >
+                      <NodeIconChip
+                        type={t_type}
+                        size={28}
+                        iconSize={16}
+                        className="rounded-md"
+                      />
+                      <span className="flex flex-col">
+                        <span className="text-popover-foreground text-[13px] font-semibold">
+                          {t(`nodes.${t_type}.label`)}
+                        </span>
+                        <span className="text-muted-foreground text-[11.5px]">
+                          {t(`nodes.${t_type}.blurb`)}
+                        </span>
                       </span>
-                      <span className="text-muted-foreground text-[11.5px]">
-                        {t(`nodes.${t_type}.blurb`)}
-                      </span>
-                    </span>
-                  </DropdownMenuItem>
+                    </DropdownMenuItem>
+                    {t_type === 'send_message' && (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleAdd('send_message', {
+                            message_type: 'template',
+                            template_name: '',
+                            template_language: 'en_US',
+                            template_params: [],
+                          })
+                        }
+                        className="gap-3 py-2"
+                      >
+                        <NodeIconChip
+                          type={t_type}
+                          size={28}
+                          iconSize={16}
+                          className="rounded-md"
+                        />
+                        <span className="flex flex-col">
+                          <span className="text-popover-foreground text-[13px] font-semibold">
+                            {t('nodes.send_template.label')}
+                          </span>
+                          <span className="text-muted-foreground text-[11.5px]">
+                            {t('nodes.send_template.blurb')}
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    )}
+                  </Fragment>
                 );
               })}
             </DropdownMenuGroup>

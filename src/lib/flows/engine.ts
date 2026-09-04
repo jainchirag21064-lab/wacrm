@@ -672,6 +672,22 @@ async function advanceFromNodeKey(
               params: (cfg.template_params ?? []).map((param) =>
                 interpolateVars(param, run.vars, contact),
               ),
+              messageParams: {
+                body: (cfg.template_params ?? []).map((param) =>
+                  interpolateVars(param, run.vars, contact),
+                ),
+                headerText: cfg.template_header_text
+                  ? interpolateVars(cfg.template_header_text, run.vars, contact)
+                  : undefined,
+                buttonParams: Object.fromEntries(
+                  Object.entries(cfg.template_button_params ?? {}).map(
+                    ([index, value]) => [
+                      Number(index),
+                      interpolateVars(value, run.vars, contact),
+                    ],
+                  ),
+                ),
+              },
             })
           : await engineSendText({
               accountId: run.account_id,

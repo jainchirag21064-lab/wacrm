@@ -35,6 +35,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { createClient } from "@/lib/supabase/client";
+import type { MessageTemplate } from "@/types";
+import { extractVariableIndices } from "@/lib/whatsapp/template-validators";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +87,8 @@ export function NodeConfigForm({
         template_name?: string;
         template_language?: string;
         template_params?: string[];
+        template_header_text?: string;
+        template_button_params?: Record<string, string>;
       };
       const messageType = sendMessageCfg.message_type ?? "text";
       return (
@@ -111,52 +116,11 @@ export function NodeConfigForm({
             </Select>
           </div>
           {messageType === "template" ? (
-            <>
-              <div>
-                <label className="mb-1 block text-xs text-muted-foreground">
-                  {t("templateName")}
-                </label>
-                <Input
-                  value={sendMessageCfg.template_name ?? ""}
-                  onChange={(e) =>
-                    onUpdateConfig({ template_name: e.target.value })
-                  }
-                  placeholder="approved_template_name"
-                  className="bg-muted font-mono text-xs"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-muted-foreground">
-                  {t("templateLanguage")}
-                </label>
-                <Input
-                  value={sendMessageCfg.template_language ?? "en_US"}
-                  onChange={(e) =>
-                    onUpdateConfig({ template_language: e.target.value })
-                  }
-                  placeholder="en_US"
-                  className="bg-muted font-mono text-xs"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-muted-foreground">
-                  {t("templateParams")}
-                </label>
-                <Input
-                  value={(sendMessageCfg.template_params ?? []).join(", ")}
-                  onChange={(e) =>
-                    onUpdateConfig({
-                      template_params: e.target.value
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  placeholder="{{vars.name}}, {{contact.company}}"
-                  className="bg-muted"
-                />
-              </div>
-            </>
+            <TemplateMessageFields
+              cfg={sendMessageCfg}
+              onUpdateConfig={onUpdateConfig}
+              t={t}
+            />
           ) : (
             <TextRow
               label={t("textToCustomer")}
@@ -291,6 +255,167 @@ export function NodeConfigForm({
         </p>
       );
   }
+}
+
+function TemplateMessageFields({
+  cfg,
+  onUpdateConfig,
+  t,
+}: {
+  cfg: {
+    template_name?: string;
+    template_language?: string;
+    template_params?: string[];
+    template_header_text?: string;
+    template_button_params?: Record<string, string>;
+  };
+  onUpdateConfig: (patch: Record<string, unknown>) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void createClient()
+      .from("message_templates")
+      .select("*")
+      .eq("status", "APPROVED")
+      .order("name")
+      .then(({ data }) => {
+        if (!cancelled) {
+          setTemplates((data as MessageTemplate[] | null) ?? []);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selected = templates.find(
+    (template) =>
+      template.name === cfg.template_name &&
+      (template.language ?? "en_US") === (cfg.template_language ?? "en_US"),
+  );
+  const bodyVariableCount = selected
+    ? extractVariableIndices(selected.body_text).length
+    : 0;
+  const headerVariableCount =
+    selected?.header_type === "text"
+      ? extractVariableIndices(selected.header_content ?? "").length
+      : 0;
+  const variableButtons = (selected?.buttons ?? [])
+    .map((button, index) => ({ button, index }))
+    .filter(
+      ({ button }) =>
+        (button.type === "URL" && extractVariableIndices(button.url).length > 0) ||
+        button.type === "COPY_CODE",
+    );
+
+  const updateBodyParam = (index: number, value: string) => {
+    const params = [...(cfg.template_params ?? [])];
+    params[index] = value;
+    onUpdateConfig({ template_params: params });
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          {t("templateName")}
+        </label>
+        <Select
+          value={selected ? `${selected.name}::${selected.language ?? "en_US"}` : ""}
+          onValueChange={(value) => {
+            if (!value) return;
+            const [name, language] = value.split("::");
+            const template = templates.find(
+              (item) => item.name === name && (item.language ?? "en_US") === language,
+            );
+            onUpdateConfig({
+              template_name: name,
+              template_language: language,
+              template_params: template?.sample_values?.body?.slice() ?? [],
+              template_header_text: "",
+              template_button_params: {},
+            });
+          }}
+        >
+          <SelectTrigger className="bg-muted">
+            <SelectValue
+              placeholder={loading ? t("loadingTemplates") : t("selectTemplate")}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {templates.map((template) => {
+              const language = template.language ?? "en_US";
+              return (
+                <SelectItem key={template.id} value={`${template.name}::${language}`}>
+                  {template.name} ({language})
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selected && bodyVariableCount > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground">{t("templateBodyParameters")}</p>
+          {Array.from({ length: bodyVariableCount }, (_, index) => (
+            <Input
+              key={index}
+              value={cfg.template_params?.[index] ?? ""}
+              onChange={(event) => updateBodyParam(index, event.target.value)}
+              placeholder={`{{${index + 1}}}`}
+              className="bg-muted"
+            />
+          ))}
+        </div>
+      )}
+
+      {selected && headerVariableCount > 0 && (
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            {t("templateHeaderParameter")}
+          </label>
+          <Input
+            value={cfg.template_header_text ?? ""}
+            onChange={(event) => onUpdateConfig({ template_header_text: event.target.value })}
+            placeholder="{{1}}"
+            className="bg-muted"
+          />
+        </div>
+      )}
+
+      {selected && variableButtons.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground">{t("templateButtonParameters")}</p>
+          {variableButtons.map(({ button, index }) => (
+            <Input
+              key={index}
+              value={cfg.template_button_params?.[String(index)] ?? ""}
+              onChange={(event) =>
+                onUpdateConfig({
+                  template_button_params: {
+                    ...(cfg.template_button_params ?? {}),
+                    [String(index)]: event.target.value,
+                  },
+                })
+              }
+              placeholder={button.type === "COPY_CODE" ? t("couponCode") : `Button ${index + 1}`}
+              className="bg-muted"
+            />
+          ))}
+        </div>
+      )}
+
+      {!loading && templates.length === 0 && (
+        <p className="text-xs text-muted-foreground">{t("noApprovedTemplates")}</p>
+      )}
+    </div>
+  );
 }
 
 // ============================================================

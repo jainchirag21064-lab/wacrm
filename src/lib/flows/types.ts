@@ -38,6 +38,10 @@ export interface SendMessageNodeConfig {
   template_language?: string;
   /** Body values for {{1}}, {{2}}, ...; supports flow interpolation. */
   template_params?: string[];
+  /** Value for a text header variable, if the template has one. */
+  template_header_text?: string;
+  /** Values for variable URL/COPY_CODE buttons, keyed by button index. */
+  template_button_params?: Record<string, string>;
   /** Auto-advance target after the message lands at Meta. */
   next_node_key: string;
 }
