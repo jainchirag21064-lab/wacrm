@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         description?: string | null
         trigger_type?: 'keyword' | 'first_inbound_message' | 'manual'
         trigger_config?: Record<string, unknown>
+        entry_node_id?: string | null
         /**
          * If set, clone the matching template's name + trigger +
          * entry_node_id + nodes[] into a fresh draft for this user.
@@ -90,6 +91,14 @@ export async function POST(request: Request) {
          * provided.
          */
         template_slug?: string
+        nodes?: Array<{
+          node_key: string
+          node_type: string
+          config: Record<string, unknown>
+          position_x?: number
+          position_y?: number
+        }>
+        fallback_policy?: Record<string, unknown>
       }
     | null
   if (!body) {
@@ -150,11 +159,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ flow }, { status: 201 })
   }
 
-  // -------- Plain (empty) create path --------
+  // -------- Import / plain create path --------
   if (!body.name?.trim()) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
   }
   const trigger_type = body.trigger_type ?? 'keyword'
+  const importedNodes = body.nodes ?? []
+  const nodeKeys = new Set<string>()
+  for (const node of importedNodes) {
+    if (!node.node_key?.trim() || !node.node_type?.trim() || !node.config) {
+      return NextResponse.json(
+        { error: 'Every imported node needs node_key, node_type, and config.' },
+        { status: 400 },
+      )
+    }
+    if (nodeKeys.has(node.node_key)) {
+      return NextResponse.json(
+        { error: `Duplicate node_key "${node.node_key}".` },
+        { status: 400 },
+      )
+    }
+    nodeKeys.add(node.node_key)
+  }
+  if (body.entry_node_id && !nodeKeys.has(body.entry_node_id)) {
+    return NextResponse.json(
+      { error: `Entry node "${body.entry_node_id}" does not exist.` },
+      { status: 400 },
+    )
+  }
 
   const { data, error } = await admin
     .from('flows')
@@ -166,6 +198,8 @@ export async function POST(request: Request) {
       status: 'draft',
       trigger_type,
       trigger_config: body.trigger_config ?? {},
+      entry_node_id: body.entry_node_id ?? null,
+      fallback_policy: body.fallback_policy ?? undefined,
     })
     .select()
     .single()
@@ -174,6 +208,22 @@ export async function POST(request: Request) {
       { error: error?.message ?? 'insert failed' },
       { status: 500 },
     )
+  }
+  if (importedNodes.length > 0) {
+    const { error: nodesError } = await admin.from('flow_nodes').insert(
+      importedNodes.map((node) => ({
+        flow_id: data.id,
+        node_key: node.node_key,
+        node_type: node.node_type,
+        config: node.config,
+        position_x: node.position_x ?? 0,
+        position_y: node.position_y ?? 0,
+      })),
+    )
+    if (nodesError) {
+      await admin.from('flows').delete().eq('id', data.id)
+      return NextResponse.json({ error: nodesError.message }, { status: 500 })
+    }
   }
   return NextResponse.json({ flow: data }, { status: 201 })
 }

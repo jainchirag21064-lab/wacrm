@@ -22,18 +22,22 @@
  * /flows/[id]/runs) — those don't belong in the hook.
  */
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CircleDot,
+  Download,
   History,
   Loader2,
   PauseCircle,
   PlayCircle,
   Save,
   Trash2,
+  Upload,
   Workflow,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -41,9 +45,14 @@ import {
   useFlowEditor,
   type BuilderState,
 } from "./flow-editor-state";
+import {
+  createFlowExportDocument,
+  parseFlowExportDocument,
+} from "@/lib/flows/transfer";
 
 export function EditorHeader() {
   const router = useRouter();
+  const importInputRef = useRef<HTMLInputElement>(null);
   const {
     flow,
     state,
@@ -56,6 +65,58 @@ export function EditorHeader() {
     setStatus,
     deleteFlow,
   } = useFlowEditor();
+
+  const exportFlow = () => {
+    const exportDocument = createFlowExportDocument(
+      {
+        name: state.name,
+        description: state.description || null,
+        trigger_type: state.trigger_type,
+        trigger_config: state.trigger_config,
+        entry_node_id: state.entry_node_id,
+        fallback_policy: flow.fallback_policy,
+      },
+      state.nodes,
+    );
+    const blob = new Blob([JSON.stringify(exportDocument, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = `${state.name.trim().replace(/[^a-z0-9]+/gi, "-") || "flow"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importFlow = async (file: File) => {
+    try {
+      const parsed = parseFlowExportDocument(JSON.parse(await file.text()));
+      const response = await fetch("/api/flows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: parsed.flow.name,
+          description: parsed.flow.description,
+          trigger_type: parsed.flow.trigger_type,
+          trigger_config: parsed.flow.trigger_config,
+          entry_node_id: parsed.flow.entry_node_id,
+          fallback_policy: parsed.flow.fallback_policy,
+          nodes: parsed.nodes,
+        }),
+      });
+      const result = (await response.json()) as { flow?: { id: string }; error?: string };
+      if (!response.ok || !result.flow?.id) {
+        throw new Error(result.error ?? "Import failed");
+      }
+      toast.success("Flow imported as a new draft");
+      router.push(`/flows/${result.flow.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Import failed");
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="flex flex-col gap-1.5 px-6 pt-5">
@@ -95,6 +156,29 @@ export function EditorHeader() {
 
         {/* ---- right: runs · delete · activate · save ---- */}
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importFlow(file);
+            }}
+          />
+          <Button variant="ghost" size="sm" onClick={exportFlow} title="Export flow JSON">
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => importInputRef.current?.click()}
+            title="Import flow JSON as a new draft"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Import
+          </Button>
           <Button
             variant="ghost"
             size="sm"
