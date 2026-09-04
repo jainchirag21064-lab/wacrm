@@ -6,7 +6,7 @@
     "description": "Deterministic menu-driven travel assistant for trip planning, packages, flights, hotels, bookings, travel services, support, and human handoff.",
     "trigger_type": "keyword",
     "trigger_config": {
-      "keywords": ["hi", "hello", "hey", "travel", "help"],
+      "keywords": ["hi", "hello", "hey", "travel", "help","Hi", "Hello", "Hey", "Travel", "Help"],
       "match_type": "contains",
       "case_sensitive": false
     },
