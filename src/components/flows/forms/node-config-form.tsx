@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import type { MessageTemplate } from "@/types";
+import type { AccountMember } from "@/types";
 import { extractVariableIndices } from "@/lib/whatsapp/template-validators";
 
 import { Button } from "@/components/ui/button";
@@ -289,11 +290,10 @@ export function NodeConfigForm({
 
     case "handoff":
       return (
-        <TextRow
-          label={t("internalNote")}
-          value={(cfg as { note?: string }).note ?? ""}
-          onChange={(v) => onUpdateConfig({ note: v })}
-          rows={2}
+        <HandoffForm
+          cfg={cfg as { note?: string; assign_to?: string }}
+          onUpdateConfig={onUpdateConfig}
+          t={t}
         />
       );
 
@@ -304,6 +304,79 @@ export function NodeConfigForm({
         </p>
       );
   }
+}
+
+function HandoffForm({
+  cfg,
+  onUpdateConfig,
+  t,
+}: {
+  cfg: { note?: string; assign_to?: string };
+  onUpdateConfig: (patch: Record<string, unknown>) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [members, setMembers] = useState<AccountMember[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/account/members", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { members: [] }))
+      .then((data: { members?: AccountMember[] }) => {
+        if (!cancelled) {
+          setMembers(
+            (data.members ?? []).filter(
+              (member) => member.role !== "viewer",
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMembers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <>
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          {t("assignAgent")}
+        </label>
+        <Select
+          value={cfg.assign_to ?? "unassigned"}
+          onValueChange={(value) =>
+            onUpdateConfig({ assign_to: value === "unassigned" ? "" : value })
+          }
+        >
+          <SelectTrigger className="bg-muted">
+            <SelectValue placeholder={t("unassignedAgent")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">{t("unassignedAgent")}</SelectItem>
+            {members.map((member) => (
+              <SelectItem key={member.user_id} value={member.user_id}>
+                {member.full_name || member.email || member.user_id}
+                {member.role === "admin" || member.role === "owner"
+                  ? ` (${member.role})`
+                  : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {t("handoffAssignmentHelp")}
+        </p>
+      </div>
+      <TextRow
+        label={t("internalNote")}
+        value={cfg.note ?? ""}
+        onChange={(v) => onUpdateConfig({ note: v })}
+        rows={5}
+      />
+    </>
+  );
 }
 
 function TemplateMessageFields({
