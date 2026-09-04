@@ -28,8 +28,16 @@ export interface StartNodeConfig {
 }
 
 export interface SendMessageNodeConfig {
+  /** Message mode; omitted for backward-compatible plain text nodes. */
+  message_type?: "text" | "template";
   /** Plain text sent to the customer; can interpolate {{vars.X}}. */
-  text: string;
+  text?: string;
+  /** Approved WhatsApp template name when message_type is template. */
+  template_name?: string;
+  /** Template language, for example en_US or en. */
+  template_language?: string;
+  /** Body values for {{1}}, {{2}}, ...; supports flow interpolation. */
+  template_params?: string[];
   /** Auto-advance target after the message lands at Meta. */
   next_node_key: string;
 }

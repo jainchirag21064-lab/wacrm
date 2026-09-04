@@ -1101,6 +1101,12 @@
       "form": {
         "advancesTo": "다음 진행",
         "textToCustomer": "고객에게 전송되는 텍스트",
+        "messageType": "메시지 유형",
+        "textMessage": "텍스트 메시지",
+        "templateMessage": "템플릿 메시지",
+        "templateName": "템플릿 이름",
+        "templateLanguage": "템플릿 언어",
+        "templateParams": "본문 매개변수 (쉼표로 구분)",
         "promptToCustomer": "고객에게 전송되는 질문",
         "varKeyLabel": "변수 키 (flow_runs.vars에 저장됨; 영숫자 + 밑줄만 사용)",
         "varKeyPlaceholder": "예: name, email, company",

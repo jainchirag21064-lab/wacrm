@@ -212,8 +212,23 @@ function validateNode(
     }
 
     case "send_message": {
-      const cfg = node.config as { text?: string; next_node_key?: string };
-      if (!cfg.text?.trim()) {
+      const cfg = node.config as {
+        message_type?: "text" | "template";
+        text?: string;
+        template_name?: string;
+        template_language?: string;
+        next_node_key?: string;
+      };
+      const isTemplate = cfg.message_type === "template";
+      if (isTemplate && !cfg.template_name?.trim()) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "template_name",
+          message: "Template message needs a template name.",
+        });
+      } else if (!isTemplate && !cfg.text?.trim()) {
         issues.push({
           severity: "error",
           scope: "node",

@@ -39,6 +39,7 @@ import {
   engineSendMedia,
   engineSendText,
 } from "./meta-send";
+import { engineSendTemplate } from "@/lib/automations/meta-send";
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
 import { addContactTagAndDispatch } from "@/lib/contacts/tag-events";
 import { removeContactTag } from "@/lib/contacts/tag-write";
@@ -656,15 +657,32 @@ async function advanceFromNodeKey(
     if (node.node_type === "send_message") {
       const cfg = node.config as unknown as SendMessageNodeConfig;
       try {
-        const { whatsapp_message_id } = await engineSendText({
-          accountId: run.account_id,
-    userId: run.user_id,
-          conversationId: run.conversation_id!,
-          contactId: run.contact_id!,
-          text: interpolateVars(cfg.text, run.vars, contact),
-        });
+        const isTemplate = cfg.message_type === "template";
+        if (isTemplate && !cfg.template_name?.trim()) {
+          throw new Error("template_name is required for template messages");
+        }
+        const { whatsapp_message_id } = isTemplate
+          ? await engineSendTemplate({
+              accountId: run.account_id,
+              userId: run.user_id,
+              conversationId: run.conversation_id!,
+              contactId: run.contact_id!,
+              templateName: cfg.template_name!.trim(),
+              language: cfg.template_language || undefined,
+              params: (cfg.template_params ?? []).map((param) =>
+                interpolateVars(param, run.vars, contact),
+              ),
+            })
+          : await engineSendText({
+              accountId: run.account_id,
+              userId: run.user_id,
+              conversationId: run.conversation_id!,
+              contactId: run.contact_id!,
+              text: interpolateVars(cfg.text ?? "", run.vars, contact),
+            });
         await logEvent(db, run.id, "message_sent", node.node_key, {
           node_type: "send_message",
+          message_type: isTemplate ? "template" : "text",
           whatsapp_message_id,
         });
       } catch (err) {

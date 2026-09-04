@@ -78,13 +78,92 @@ export function NodeConfigForm({
       );
 
     case "send_message":
+      const sendMessageCfg = cfg as {
+        message_type?: "text" | "template";
+        text?: string;
+        template_name?: string;
+        template_language?: string;
+        template_params?: string[];
+      };
+      const messageType = sendMessageCfg.message_type ?? "text";
       return (
         <>
-          <TextRow
-            label={t("textToCustomer")}
-            value={(cfg as { text?: string }).text ?? ""}
-            onChange={(v) => onUpdateConfig({ text: v })}
-          />
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              {t("messageType")}
+            </label>
+            <Select
+              value={messageType}
+              onValueChange={(value) =>
+                onUpdateConfig({
+                  message_type: value,
+                  ...(value === "template" ? { text: undefined } : {}),
+                })
+              }
+            >
+              <SelectTrigger className="bg-muted">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">{t("textMessage")}</SelectItem>
+                <SelectItem value="template">{t("templateMessage")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {messageType === "template" ? (
+            <>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {t("templateName")}
+                </label>
+                <Input
+                  value={sendMessageCfg.template_name ?? ""}
+                  onChange={(e) =>
+                    onUpdateConfig({ template_name: e.target.value })
+                  }
+                  placeholder="approved_template_name"
+                  className="bg-muted font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {t("templateLanguage")}
+                </label>
+                <Input
+                  value={sendMessageCfg.template_language ?? "en_US"}
+                  onChange={(e) =>
+                    onUpdateConfig({ template_language: e.target.value })
+                  }
+                  placeholder="en_US"
+                  className="bg-muted font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {t("templateParams")}
+                </label>
+                <Input
+                  value={(sendMessageCfg.template_params ?? []).join(", ")}
+                  onChange={(e) =>
+                    onUpdateConfig({
+                      template_params: e.target.value
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="{{vars.name}}, {{contact.company}}"
+                  className="bg-muted"
+                />
+              </div>
+            </>
+          ) : (
+            <TextRow
+              label={t("textToCustomer")}
+              value={sendMessageCfg.text ?? ""}
+              onChange={(v) => onUpdateConfig({ text: v })}
+            />
+          )}
           <NextNodeRow
             value={(cfg as { next_node_key?: string }).next_node_key ?? ""}
             allNodes={allNodes}

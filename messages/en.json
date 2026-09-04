@@ -1101,6 +1101,12 @@
       "form": {
         "advancesTo": "Advances to",
         "textToCustomer": "Text sent to the customer",
+        "messageType": "Message type",
+        "textMessage": "Text message",
+        "templateMessage": "Template message",
+        "templateName": "Template name",
+        "templateLanguage": "Template language",
+        "templateParams": "Body parameters (comma separated)",
         "promptToCustomer": "Prompt sent to the customer",
         "varKeyLabel": "Variable key (stored in flow_runs.vars; alphanumeric + underscore)",
         "varKeyPlaceholder": "e.g. name, email, company",
