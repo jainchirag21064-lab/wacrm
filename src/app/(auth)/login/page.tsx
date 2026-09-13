@@ -150,17 +150,27 @@ function LoginPageInner() {
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {t('noAccount')}{" "}
-            <Link
-              href={
-                inviteToken
-                  ? `/signup?invite=${encodeURIComponent(inviteToken)}`
-                  : "/signup"
-              }
-              className="text-primary hover:text-primary/80"
-            >
-              {t('createAccount')}
-            </Link>
+            {inviteToken ? (
+              <>
+                {t('invitePrompt')}{" "}
+                <Link
+                  href={`/signup?invite=${encodeURIComponent(inviteToken)}`}
+                  className="text-primary hover:text-primary/80"
+                >
+                  {t('inviteJoin')}
+                </Link>
+              </>
+            ) : (
+              <>
+                {t('needAccess')}{" "}
+                <Link
+                  href="/request-access"
+                  className="text-primary hover:text-primary/80"
+                >
+                  {t('requestAccess')}
+                </Link>
+              </>
+            )}
           </p>
         </CardContent>
       </Card>

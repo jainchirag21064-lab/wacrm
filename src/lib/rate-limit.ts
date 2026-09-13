@@ -173,6 +173,15 @@ export const RATE_LIMITS = {
    *  capping a stampede; excess inbounds simply don't get an auto-reply
    *  (they still land in the inbox for a human). */
   aiAutoReplyAccount: { limit: 30, windowMs: 60_000 },
+  /** Public "Request Access" submission, per IP. 5 / 10 min is enough
+   *  for a real visitor to correct a typo and resubmit while bounding a
+   *  script harvesting the form. The DB's one-pending-per-email partial
+   *  unique index is the second, email-scoped backstop. */
+  accessRequest: { limit: 5, windowMs: 600_000 },
+  /** Public "Request Access" submission, per normalized email. Tighter
+   *  than the IP budget so one email can't be spammed into the review
+   *  queue from many IPs. 3 / 60 min ≈ a human revisiting the form. */
+  accessRequestPerEmail: { limit: 3, windowMs: 3_600_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

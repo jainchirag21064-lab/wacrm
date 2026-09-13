@@ -65,7 +65,7 @@ function MessageContent({
 }: {
   message: Message;
   t: ReturnType<typeof useTranslations>;
-  /** Outbound bubbles sit on the primary fill — badges must invert. */
+  /** Outbound bubbles sit on the WhatsApp green fill — badges must invert. */
   isAgent: boolean;
   onOpenMedia?: (messageId: string) => void;
 }) {
@@ -132,19 +132,21 @@ function MessageContent({
 
     case "template":
       // Templates are almost always outbound, where the bubble fill IS
-      // `primary` — so the old `bg-primary/20 text-primary` chip was
-      // primary-on-primary and invisible. Paired with a null
-      // content_text (issue #483) that rendered a bubble with nothing
-      // in it at all. Invert on the primary fill, and fall back to the
-      // template's name when we have no stored body (legacy rows sent
-      // before the fix).
+      // the WhatsApp green (`#d9fdd3` light / `primary-hover` dark) — so
+      // the old `primary-on-primary` chip was either invisible
+      // (light) or legible-only-by-inversion. We now use a translucent
+      // surface that reads on both the pale-green light bubble and the
+      // dark `primary-hover` one. Paired with a null content_text (issue
+      // #483) that rendered a bubble with nothing in it at all.
+      // Fall back to the template's name when we have no stored body
+      // (legacy rows sent before the fix).
       return (
         <div>
           <span
             className={cn(
               "mb-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
               isAgent
-                ? "bg-primary-foreground/20 text-primary-foreground"
+                ? "bg-zinc-800/10 text-zinc-700 dark:bg-white/20 dark:text-white"
                 : "bg-primary/20 text-primary",
             )}
           >
@@ -241,8 +243,8 @@ export function MessageBubble({
         className={cn(
           "relative rounded-2xl px-3 py-2",
           isAgent
-            ? "rounded-br-md bg-primary text-primary-foreground"
-            : "rounded-bl-md bg-muted text-foreground",
+            ? "rounded-br-md bg-[#d9fdd3] text-zinc-800 dark:bg-primary-hover dark:text-white"
+            : "rounded-bl-md bg-white text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
         )}
       >
         {reply && (
@@ -265,12 +267,12 @@ export function MessageBubble({
           )}
         >
           {/* AI badge — only on replies the auto-reply bot generated
-              (always outbound, so it sits on the primary fill). Lets
-              agents tell an AI reply from their own / a Flow's at a
-              glance. */}
+              (always outbound, so it sits on the WhatsApp green fill).
+              Lets agents tell an AI reply from their own / a Flow's at
+              a glance. */}
           {message.ai_generated && (
             <span
-              className="inline-flex items-center gap-0.5 rounded-full bg-primary-foreground/20 px-1.5 py-px text-[9px] font-semibold uppercase leading-none tracking-wide text-primary-foreground"
+              className="inline-flex items-center gap-0.5 rounded-full bg-zinc-800/10 px-1.5 py-px text-[9px] font-semibold uppercase leading-none tracking-wide text-zinc-700 dark:bg-white/20 dark:text-white"
               title={t("aiBadgeTitle")}
             >
               <Sparkles className="h-2.5 w-2.5" />
@@ -280,11 +282,13 @@ export function MessageBubble({
           <span
             className={cn(
               "text-[10px]",
-              // Outbound bubbles sit on the primary fill, so the
-              // timestamp must read against that (not the neutral
-              // foreground) — otherwise it goes low-contrast in light
-              // mode. Inbound bubbles use the muted surface.
-              isAgent ? "text-primary-foreground/70" : "text-muted-foreground",
+              // Outbound bubbles sit on the WhatsApp green fill, so the
+              // timestamp must read against that (dark ink in light
+              // mode, white in dark) — not the neutral foreground.
+              // Inbound bubbles use the white/zinc-800 surface.
+              isAgent
+                ? "text-zinc-600/70 dark:text-white/70"
+                : "text-muted-foreground",
             )}
           >
             {time}

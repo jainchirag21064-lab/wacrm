@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clampExpiryDays,
+  customerInviteUrl,
   DEFAULT_INVITE_EXPIRY_DAYS,
   generateInviteToken,
   hashInviteToken,
@@ -78,6 +79,37 @@ describe("inviteUrl", () => {
     // The token may contain `-` and `_`. Both are URL-safe; the
     // function must NOT percent-encode them.
     expect(inviteUrl("a-b_c", "https://x")).toBe("https://x/join/a-b_c");
+  });
+});
+
+describe("customerInviteUrl", () => {
+  it("builds the /signup?customer_invite= URL with no trailing slash", () => {
+    expect(customerInviteUrl("abc", "https://wacrm.example")).toBe(
+      "https://wacrm.example/signup?customer_invite=abc",
+    );
+  });
+
+  it("tolerates a trailing slash on baseUrl", () => {
+    expect(customerInviteUrl("abc", "https://wacrm.example/")).toBe(
+      "https://wacrm.example/signup?customer_invite=abc",
+    );
+  });
+
+  it("URL-encodes the token so it survives as a query value", () => {
+    expect(customerInviteUrl("a b/c+d", "https://x")).toBe(
+      "https://x/signup?customer_invite=a%20b%2Fc%2Bd",
+    );
+  });
+
+  it("embeds the token in the query (distinct from the team /join path)", () => {
+    const { token } = generateInviteToken();
+    const url = customerInviteUrl(token, "https://wacrm.example");
+    expect(url).toContain("/signup?customer_invite=");
+    expect(url).not.toContain("/join/");
+    // decodeURIComponent back to the raw base64url token
+    const raw = url.split("customer_invite=")[1];
+    expect(decodeURIComponent(raw)).toBe(token);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
 });
 

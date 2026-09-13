@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import {
   loadStepsTree,
@@ -12,28 +11,31 @@ import {
   validateTriggerForActivation,
 } from '@/lib/automations/validate'
 
-async function requireUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
-}
-
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const user = await requireUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // getCurrentAccount also rejects suspended accounts — the service-role
+  // reads below bypass RLS, so without it a suspended user could still
+  // pull automations by id. The read is scoped by account_id (the
+  // tenancy key since migration 017), the same reach automations_select
+  // gives any account member.
+  let accountId: string
+  try {
+    const ctx = await getCurrentAccount()
+    accountId = ctx.accountId
+  } catch (err) {
+    return toErrorResponse(err)
+  }
 
   const admin = supabaseAdmin()
   const { data: automation, error } = await admin
     .from('automations')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('account_id', accountId)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -51,15 +53,14 @@ export async function PATCH(
 
   // Editing an automation is a write — the RLS automations_update policy
   // requires `agent`, but this route mutates via the service-role client
-  // which bypasses RLS, so enforce the role here.
+  // which bypasses RLS, so the role must be enforced here.
+  let accountId: string
   try {
-    await requireRole('agent')
+    const ctx = await requireRole('agent')
+    accountId = ctx.accountId
   } catch (err) {
     return toErrorResponse(err)
   }
-
-  const user = await requireUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
@@ -67,13 +68,17 @@ export async function PATCH(
   const admin = supabaseAdmin()
 
   // Ownership check before we touch anything. Load the fields we need
-  // to compute the post-patch "effective" state for validation.
+  // to compute the post-patch "effective" state for validation. Scoped
+  // by account (the tenancy key since migration 017) — the RLS
+  // automations_select/update policies let any member of the account
+  // read and edit, so account scoping is the faithful mirror.
   const { data: existing } = await admin
     .from('automations')
     .select('id, user_id, is_active, trigger_type, trigger_config')
     .eq('id', id)
+    .eq('account_id', accountId)
     .maybeSingle()
-  if (!existing || existing.user_id !== user.id) {
+  if (!existing) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
@@ -138,21 +143,21 @@ export async function DELETE(
   const { id } = await params
 
   // Deleting an automation is a write — enforce `agent` (the service-role
-  // client below bypasses the agent-gated automations_delete RLS).
+  // client below bypasses the agent-gated automations_delete RLS) and
+  // scope the delete to the caller's account.
+  let accountId: string
   try {
-    await requireRole('agent')
+    const ctx = await requireRole('agent')
+    accountId = ctx.accountId
   } catch (err) {
     return toErrorResponse(err)
   }
-
-  const user = await requireUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { error } = await supabaseAdmin()
     .from('automations')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('account_id', accountId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

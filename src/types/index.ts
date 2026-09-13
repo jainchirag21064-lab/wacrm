@@ -1,5 +1,6 @@
-import type { AccountRole } from "@/lib/auth/roles";
-import type { InteractiveMessagePayload } from "@/lib/whatsapp/interactive";
+import type { AccountRole } from '@/lib/auth/roles';
+import type { PlatformAccountStatus } from '@/lib/auth/roles';
+import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive';
 
 export type {
   InteractiveMessagePayload,
@@ -8,7 +9,7 @@ export type {
   InteractiveButton,
   InteractiveListRow,
   InteractiveListSection,
-} from "@/lib/whatsapp/interactive";
+} from '@/lib/whatsapp/interactive';
 
 export interface Profile {
   id: string;
@@ -57,8 +58,82 @@ export interface Account {
   name: string;
   /** auth.users.id of the immutable owner. */
   owner_user_id: string;
+  /** Platform-level account status. Suspended accounts are blocked
+   *  from the dashboard and protected APIs. */
+  status: PlatformAccountStatus;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Denormalised row returned by the platform account list API.
+ * Includes owner info, member count, and WhatsApp config status —
+ * everything the platform-admin UI needs without N+1 queries.
+ */
+export interface PlatformAccountListItem {
+  id: string;
+  name: string;
+  status: PlatformAccountStatus;
+  created_at: string;
+  owner_name: string;
+  owner_email: string;
+  member_count: number;
+  /** Per-account member-limit override (accounts.member_limit).
+   *  `null` means "use the platform default" (returned separately as
+   *  `default_member_limit`). */
+  member_limit: number | null;
+  whatsapp_configured: boolean;
+}
+
+export type CustomerInviteStatus =
+  'pending' | 'accepted' | 'revoked' | 'expired';
+
+export type SignupRequestStatus =
+  'pending' | 'approved' | 'rejected' | 'converted' | 'spam';
+
+/**
+ * Public "Request Access" submission, reviewed by platform admins.
+ * A request NEVER authorizes signup by itself — approval simply
+ * generates a separate platform customer invitation; submission is
+ * fully decoupled from the signup gate and from Auth user creation.
+ */
+export interface SignupRequest {
+  id: string;
+  full_name: string;
+  email: string;
+  company_name: string | null;
+  message: string | null;
+  referral_code: string | null;
+  status: SignupRequestStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  platform_invite_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Row returned by the platform customer-invite API. Never includes
+ * the plaintext token — only a shareable link built at creation time
+ * (returned exactly once from POST) and the internal fields a
+ * platform admin needs to manage the invite.
+ */
+export interface PlatformCustomerInvite {
+  id: string;
+  email: string;
+  status: CustomerInviteStatus;
+  created_by_platform_admin: string | null;
+  created_at: string;
+  /**
+   * Set when someone began signing up for a still-`pending` invite
+   * but has not yet confirmed their email (043 lifecycle). Lets the
+   * platform UI show "signup in progress" without the invite being
+   * consumed; only email confirmation flips status to `accepted`.
+   */
+  signup_started_at: string | null;
+  accepted_at: string | null;
+  expires_at: string;
 }
 
 /**
@@ -75,6 +150,13 @@ export interface AccountMember {
   avatar_url: string | null;
   role: AccountRole;
   joined_at: string;
+  /** Set when the member was deactivated (revoked); null when active. */
+  deactivated_at: string | null;
+  /**
+   * "active" vs "deactivated" — a deactivated member keeps their
+   * seat until an owner permanently deletes them (migration 045).
+   */
+  status: 'active' | 'deactivated';
 }
 
 /**
@@ -87,7 +169,7 @@ export interface AccountInvitation {
   id: string;
   account_id: string;
   /** Roles offered via invite — owner is never offered. */
-  role: Exclude<AccountRole, "owner">;
+  role: Exclude<AccountRole, 'owner'>;
   created_by_user_id: string | null;
   label: string | null;
   created_at: string;
@@ -216,7 +298,8 @@ export type ContentType =
   | 'template'
   /** Customer tapped a reply button or list row on a message we sent. */
   | 'interactive';
-export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+export type MessageStatus =
+  'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface Message {
   id: string;
@@ -391,8 +474,10 @@ export interface Deal {
   assignee?: Profile;
 }
 
-export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
-export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'replied' | 'failed';
+export type BroadcastStatus =
+  'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
+export type RecipientStatus =
+  'pending' | 'sent' | 'delivered' | 'read' | 'replied' | 'failed';
 
 export interface Broadcast {
   id: string;
@@ -574,10 +659,7 @@ export interface WaitStepConfig {
 }
 
 export type ConditionSubject =
-  | 'contact_field'
-  | 'tag_presence'
-  | 'message_content'
-  | 'time_of_day';
+  'contact_field' | 'tag_presence' | 'message_content' | 'time_of_day';
 
 export interface ConditionStepConfig {
   subject: ConditionSubject;

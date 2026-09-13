@@ -12,10 +12,14 @@
     "signingIn": "Signing in...",
     "signIn": "Sign in",
     "noAccount": "Don't have an account?",
-    "createAccount": "Create account"
+    "createAccount": "Create account",
+    "invitePrompt": "Have an invitation?",
+    "inviteJoin": "Join now",
+    "needAccess": "Need access?",
+    "requestAccess": "Request access"
   },
   "Sidebar": {
-    "title": "CRM Template for WhatsApp",
+    "title": "WaPilot",
     "dashboard": "Dashboard",
     "inbox": "Inbox",
     "notifications": "Notifications",
@@ -38,7 +42,84 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Profile",
     "menuSettings": "Settings",
-    "menuSignOut": "Sign out"
+    "menuSignOut": "Sign out",
+    "platformAdmin": "Platform Admin",
+    "platformCustomerInvites": "Customer Invites",
+    "platformAccessRequests": "Access Requests",
+    "platformSettings": "Platform Settings"
+  },
+  "SuspendedAccount": {
+    "title": "Account suspended",
+    "description": "This account has been suspended by the platform administrator. If you believe this is a mistake, contact your account owner or the platform operator.",
+    "signOut": "Sign out"
+  },
+  "DeactivatedAccount": {
+    "title": "Your access has been revoked",
+    "description": "An account owner removed your access to this account. If you believe this is a mistake, contact the account owner — they can restore your access at any time.",
+    "signOut": "Sign out"
+  },
+  "PlatformSettings": {
+    "title": "Platform Settings",
+    "description": "Product-wide configuration.",
+    "memberLimitLabel": "Default account member limit",
+    "memberLimitHint": "Default cap on non-owner members, applied to every account without its own limit. Set a per-account limit from Platform → Accounts; deactivated members still count until permanently deleted, and 0 disallows all members.",
+    "invalidLimit": "Enter a whole number between 0 and 1000.",
+    "save": "Save",
+    "savedToast": "Member limit updated",
+    "forbidden": "You do not have permission to view this page.",
+    "loadFailed": "Could not load settings. Please try again."
+  },
+  "PlatformAccounts": {
+    "title": "Platform — Accounts",
+    "description": "Manage customer accounts. Suspend an account to block its members from the app and APIs; reactivate to restore access.",
+    "loading": "Loading accounts...",
+    "loadFailed": "Could not load accounts. Please try again.",
+    "forbidden": "You do not have permission to view this page.",
+    "retry": "Retry",
+    "empty": "No customer accounts yet.",
+    "tableTitle": "Customer accounts",
+    "tableCaption": "Platform administration — handle with care.",
+    "colAccount": "Account",
+    "colOwner": "Owner",
+    "colMembers": "Members",
+    "colLimit": "Member limit",
+    "colWhatsApp": "WhatsApp",
+    "colStatus": "Status",
+    "colCreated": "Created",
+    "colActions": "Actions",
+    "defaultLimit": "Default",
+    "setLimit": "Set member limit",
+    "overLimit": "Over limit",
+    "editLimitTitle": "Member limit — {name}",
+    "editLimitDesc": "Cap the number of non-owner members for this account. Member limits are per-account; the platform default applies to accounts you do not override.",
+    "useDefault": "Use the platform default ({limit})",
+    "limitLabel": "Member limit (0–1000, 0 = no non-owner members)",
+    "limitHint": "New invitations are rejected once this account reaches the limit. Free a seat by permanently deleting a member.",
+    "useDefaultHint": "This account falls back to the platform default configured in Platform → Settings.",
+    "invalidLimit": "Enter a whole number between 0 and 1000.",
+    "save": "Save",
+    "toastLimitSaved": "Member limit updated",
+    "toastLimitFailed": "Could not update the member limit",
+    "statusActive": "Active",
+    "statusSuspended": "Suspended",
+    "whatsappConfigured": "Configured",
+    "whatsappNotConfigured": "Not configured",
+    "ownAccount": "Your account",
+    "suspend": "Suspend",
+    "reactivate": "Reactivate",
+    "confirmSuspendTitle": "Suspend account?",
+    "confirmSuspendBody": "Suspend {name}? All members will be blocked from the dashboard and APIs until you reactivate the account.",
+    "confirmReactivateTitle": "Reactivate account?",
+    "confirmReactivateBody": "Reactivate {name}? Its members will be able to use the dashboard and APIs again.",
+    "confirmSuspend": "Suspend",
+    "confirmReactivate": "Reactivate",
+    "cancel": "Cancel",
+    "toastSuspended": "Account suspended",
+    "toastReactivated": "Account reactivated",
+    "toastSuspendFailed": "Could not suspend the account",
+    "toastReactivateFailed": "Could not reactivate the account",
+    "toastForbidden": "You must be a platform admin to do that",
+    "toastSelfSuspended": "You cannot suspend your own account"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -384,9 +465,9 @@
         "custom": "Custom Fields",
         "deals": "Deals",
         "tags": "Tags",
-      "noTags": "No tags",
-      "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+        "noTags": "No tags",
+        "noDeals": "No deals",
+        "addNotePlaceholder": "Add a note..."
       },
       "actions": {
         "edit": "Edit",
@@ -1309,10 +1390,23 @@
       "revoke": "Revoke",
       "revokedToast": "Invitation revoked",
       "removeDialogTitle": "Remove member",
-      "removeDialogDesc": "Remove <bold>{name}</bold> from the account? They'll be signed out of this account and given a fresh personal account on their next sign-in. Their login isn't deleted.",
+      "removeDialogDesc": "Deactivate <bold>{name}</bold>? They immediately lose access to this account. You can restore them anytime, but while deactivated they still occupy a seat.",
       "cancel": "Cancel",
       "removing": "Removing...",
-      "removeBtn": "Remove member"
+      "removeBtn": "Remove member",
+      "reactivatedToast": "{name} reactivated",
+      "deactivatedToast": "{name} deactivated",
+      "deletedToast": "{name} permanently deleted",
+      "restore": "Restore",
+      "deletedBadge": "Deactivated",
+      "deletedNotice": "Deactivated members keep their seat until permanently deleted.",
+      "deleteDialogTitle": "Delete member permanently",
+      "deleteDialogDesc": "Permanently delete <bold>{name}</bold>? This removes their login and profile for good and frees a seat. This cannot be undone.",
+      "deleteBtn": "Delete permanently",
+      "deleting": "Deleting...",
+      "seatsLabel": "{used} of {limit} seats used",
+      "seatsFull": "Seats are full. Permanently delete a deactivated member (or increase the limit in the platform) before adding more.",
+      "deactivatedCount": "{count} deactivated"
     },
     "invite": {
       "inviteCreated": "Invite created",
@@ -1340,6 +1434,8 @@
       "labelTooLong": "Label must be {max} characters or fewer",
       "copied": "Invite link copied",
       "clipboardBlocked": "Clipboard blocked — copy the link manually",
+      "seatFull": "This team has reached its member limit. An owner must permanently delete a member to free a seat.",
+      "createFailed": "Failed to create invitation",
       "whatsappMessage": "Join {accountName} on wacrm using this link (valid for {expiresInDays} days): {url}"
     },
     "tagsAndFields": {
@@ -1396,13 +1492,13 @@
       "deleteLocallyAria": "Delete template locally",
       "deleteMetaLocallyTitle": "Delete from Meta and locally",
       "deleteLocallyTitle": "Delete locally",
-      
+
       "dialogEditTitle": "Edit Message Template",
       "dialogNewTitle": "New Message Template",
       "dialogEditDesc": "Save your changes to re-submit to Meta. Status will flip back to PENDING during review.",
       "dialogNewDesc": "Build a template and submit it to Meta for approval. Once approved, you can use it in broadcasts and the inbox.",
       "authWarning": "AUTHENTICATION templates have a fixed body + OTP button shape that needs a different builder. Create them in Meta WhatsApp Manager for now and use <bold>Sync from Meta</bold> to bring them in.",
-      
+
       "templateName": "Template Name",
       "namePlaceholder": "e.g. order_confirmation",
       "nameFixed": "Name is fixed once a template exists on Meta — create a new template to change it.",
@@ -1411,7 +1507,7 @@
       "language": "Language",
       "langFixed": "Language is fixed once a template exists on Meta.",
       "langHint": "Must match the exact code on Meta — <code>en_US</code> and <code>en</code> are distinct.",
-      
+
       "header": "Header",
       "headerNone": "None",
       "headerText": "Text",
@@ -1421,7 +1517,7 @@
       "headerTextPlaceholder": "Header text (max 60 chars, optional {{1}})",
       "headerSampleAria": "Sample value for header variable",
       "headerSamplePlaceholder": "Sample value for {{1}} (required for Meta review)",
-      
+
       "uploadImage": "Upload image",
       "uploadHint": "JPEG or PNG, ≤5 MB",
       "mediaUrlPlaceholder": "https://… (or paste a public {format} link)",
@@ -1429,17 +1525,17 @@
       "mediaHint": "Must be a publicly accessible HTTPS link. Meta fetches it once during review, so it needs to stay live for ~24 hrs.",
       "videoHint": " Recommended: MP4 / 3GPP, ≤16 MB, ≤60 seconds.",
       "documentHint": " Recommended: PDF, ≤100 MB.",
-      
+
       "bodyText": "Body Text",
       "bodyPlaceholder": "Hello {{1}}, your order {{2}} is confirmed.",
       "bodyHint": "Use {{1}}, {{2}} for variables (must be contiguous starting at {{1}}).",
       "sampleValues": "Sample values (Meta uses these to review your template)",
       "sampleAria": "Sample value for body variable {var}",
       "samplePlaceholder": "Sample for {var}",
-      
+
       "footer": "Footer (optional)",
       "footerPlaceholder": "Optional footer text (max 60 chars)",
-      
+
       "buttons": "Buttons (optional)",
       "addButton": "Add Button",
       "buttonsLimit": "Up to {max} buttons. QUICK_REPLY buttons must come before URL / phone / copy-code buttons.",
@@ -1452,19 +1548,19 @@
       "urlSamplePlaceholder": "Example value for {{1}} (required when URL has a variable)",
       "phonePlaceholder": "+15551234567",
       "codePlaceholder": "Example code (e.g. SUMMER20)",
-      
+
       "cancel": "Cancel",
       "saving": "Saving…",
       "submitting": "Submitting…",
       "saveResubmit": "Save & Resubmit",
       "submitApproval": "Submit for Approval",
-      
+
       "deleteDialogTitle": "Delete template?",
       "deleteMetaDesc": "\"{name}\" will be deleted from Meta and from wacrm. Active broadcasts using this template will start failing on their next send. This can't be undone.",
       "deleteLocalDesc": "\"{name}\" will be deleted from wacrm. It was never submitted to Meta, so no remote cleanup is needed.",
       "deleting": "Deleting…",
       "delete": "Delete",
-      
+
       "toastLoadFailed": "Failed to load templates",
       "toastSubmitFailed": "Failed to submit",
       "toastSubmitEditSuccess": "Edit submitted — Meta typically reviews within 24 hours.",
@@ -1610,7 +1706,7 @@
       "profileSaved": "Profile saved",
       "emailChangeFailed": "Email change failed: {message}",
       "profileSavedEmailCheck": "Profile saved — check your email to confirm the address change",
-      
+
       "passwordTitle": "Password",
       "passwordDesc": "Use at least {min} characters. You will stay signed in on this device after changing it.",
       "currentPassword": "Current password",
@@ -1624,7 +1720,7 @@
       "currentPasswordIncorrect": "Current password is incorrect",
       "passwordUpdateFailed": "Password update failed: {message}",
       "passwordUpdated": "Password updated",
-      
+
       "sessionsTitle": "Active sessions",
       "sessionsDesc": "Sign out of every device where you're logged in — including this one. Useful if you lost a laptop or shared your password.",
       "signOutAll": "Sign out of all devices",

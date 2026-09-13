@@ -33,11 +33,16 @@ export function ReplyQuote({
     <div
       className={cn(
         "flex items-start gap-2 border-l-2 px-2 py-1",
-        onPrimary ? "border-primary-foreground/50" : "border-primary",
+        // `onPrimary` flips the chrome for the WhatsApp green outbound
+        // bubble — a translucent dark card in light mode and a
+        // translucent light card on the dark `primary-hover` bubble.
+        onPrimary
+          ? "border-black/10 bg-black/5 dark:border-white/15 dark:bg-white/10"
+          : "border-primary",
         isChip
           ? "rounded-md bg-muted/80"
           : onPrimary
-            ? "mb-1.5 rounded-md bg-primary-foreground/15"
+            ? "mb-1.5 rounded-md"
             : "mb-1.5 rounded-md bg-background/20",
       )}
     >
@@ -45,7 +50,9 @@ export function ReplyQuote({
         <div
           className={cn(
             "truncate text-[11px] font-medium",
-            onPrimary ? "text-primary-foreground" : "text-primary",
+            onPrimary
+              ? "text-zinc-700 dark:text-zinc-100"
+              : "text-primary",
           )}
         >
           {authorLabel}

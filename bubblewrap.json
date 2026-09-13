@@ -1,0 +1,27 @@
+{
+  "packageId": "com.wacrm.app",
+  "app_name": "wacrm",
+  "short_name": "wacrm",
+  "start_url": "/",
+  "theme_color": "#020617",
+  "background_color": "#020617",
+  "icon_path": "public/icons/icon-512.png",
+  "maskable_icon_path": "public/icons/icon-512.png",
+  "monochrome_icon_path": "public/icons/icon-512.png",
+  "splash_screen_color": "#020617",
+  "signing": {
+    "keystore_path": null,
+    "keystore_password": null,
+    "key_alias": null,
+    "key_password": null
+  },
+  "app_version_name": "0.8.0",
+  "app_version_code": 1,
+  "webkit": {
+    "play_billing_enabled": false,
+    "notifications_enabled": false
+  },
+  "generator_config": {
+    "filename": "wacrm.apk"
+  }
+}

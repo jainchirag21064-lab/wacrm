@@ -22,8 +22,10 @@ function makeClient(opts: {
   user: { id: string } | null;
   userErr?: unknown;
   byTable: Record<string, { data: unknown; error: unknown }>;
+  rpcByFn?: Record<string, { data: unknown; error: unknown }>;
 }) {
   const calls: BuilderCall[] = [];
+  const rpcCalls: string[] = [];
 
   const from = (table: string) => {
     const call: BuilderCall = { table, eqArgs: [] };
@@ -48,6 +50,7 @@ function makeClient(opts: {
 
   return {
     calls,
+    rpcCalls,
     client: {
       auth: {
         getUser: () =>
@@ -57,6 +60,10 @@ function makeClient(opts: {
           }),
       },
       from,
+      rpc(fn: string) {
+        rpcCalls.push(fn);
+        return Promise.resolve(opts.rpcByFn?.[fn] ?? { data: null, error: null });
+      },
     },
   };
 }
@@ -172,5 +179,90 @@ describe("getCurrentAccount", () => {
     await expect(getCurrentAccount()).rejects.toThrow(
       "Profile is not linked to an account",
     );
+  });
+
+  it("falls back to the status RPC when the accounts row is RLS-hidden for a suspended account", async () => {
+    const { client, rpcCalls } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: {
+          data: { account_id: "acct-1", account_role: "viewer" },
+          error: null,
+        },
+        // Post-migration 041 the accounts RLS hides the row entirely —
+        // the member still belongs, but the row reads as null.
+        accounts: { data: null, error: null },
+      },
+      rpcByFn: { current_account_status: { data: "suspended", error: null } },
+    });
+    createClient.mockReturnValue(client);
+
+    const err = await getCurrentAccount().catch((e) => e);
+    expect(err).toBeInstanceOf(ForbiddenError);
+    expect(err.message).toBe("This account has been suspended");
+    expect(rpcCalls).toEqual(["current_account_status"]);
+  });
+
+  it("treats a status RPC error as a plain not-linked failure (defensive)", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: {
+          data: { account_id: "acct-1", account_role: "viewer" },
+          error: null,
+        },
+        accounts: { data: null, error: null },
+      },
+      rpcByFn: { current_account_status: { data: null, error: { code: "PGRST" } } },
+    });
+    createClient.mockReturnValue(client);
+    await expect(getCurrentAccount()).rejects.toThrow(
+      "Profile is not linked to an account",
+    );
+  });
+
+  it("rejects a suspended account with a clear forbidden error", async () => {
+    const { client, calls } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: {
+          data: { account_id: "acct-1", account_role: "owner" },
+          error: null,
+        },
+        accounts: {
+          data: { id: "acct-1", name: "Acme", status: "suspended" },
+          error: null,
+        },
+      },
+    });
+    createClient.mockReturnValue(client);
+
+    const err = await getCurrentAccount().catch((e) => e);
+    expect(err).toBeInstanceOf(ForbiddenError);
+    expect(err.message).toBe("This account has been suspended");
+
+    // The account lookup must still reference the status column so the
+    // suspension is visible to the server-side check.
+    expect(calls[1].columns).toBe("id, name, status");
+  });
+
+  it("exposes status on the resolved account context for active accounts", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: {
+          data: { account_id: "acct-1", account_role: "admin" },
+          error: null,
+        },
+        accounts: {
+          data: { id: "acct-1", name: "Acme", status: "active" },
+          error: null,
+        },
+      },
+    });
+    createClient.mockReturnValue(client);
+
+    const ctx = await getCurrentAccount();
+    expect(ctx.account.status).toBe("active");
   });
 });

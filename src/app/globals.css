@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-mode=dark], [data-mode=dark] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -88,61 +88,61 @@
 
 :root,
 html[data-mode="dark"] {
-  --background: oklch(0.13 0.01 260);
+  --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.18 0.01 260);
-  --card-2: oklch(0.205 0.01 260);
+  --card: oklch(0.21 0.006 285.885);
+  --card-2: oklch(0.235 0.006 286);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.18 0.01 260);
+  --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.22 0.01 260);
+  --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.22 0.01 260);
-  --muted-foreground: oklch(0.65 0.01 260);
-  --accent: oklch(0.22 0.01 260);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.64 0.005 286);
+  --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.28 0.01 260);
-  --input: oklch(0.28 0.01 260);
+  --border: oklch(0.32 0.008 285.9);
+  --input: oklch(0.32 0.008 285.9);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.16 0.01 260);
+  --sidebar: oklch(0.17 0.005 286);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.22 0.01 260);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.28 0.01 260);
+  --sidebar-border: oklch(0.32 0.008 285.9);
 }
 
 html[data-mode="light"] {
-  --background: oklch(0.99 0.002 260);
-  --foreground: oklch(0.21 0.01 260);
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.21 0.006 285.885);
   --card: oklch(1 0 0);
-  --card-2: oklch(0.985 0.002 260);
-  --card-foreground: oklch(0.21 0.01 260);
+  --card-2: oklch(0.967 0.001 286.375);
+  --card-foreground: oklch(0.21 0.006 285.885);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.01 260);
-  --secondary: oklch(0.967 0.003 260);
-  --secondary-foreground: oklch(0.25 0.01 260);
-  --muted: oklch(0.967 0.003 260);
-  --muted-foreground: oklch(0.52 0.015 260);
-  --accent: oklch(0.96 0.004 260);
-  --accent-foreground: oklch(0.25 0.01 260);
+  --popover-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.25 0.005 286);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.25 0.005 286);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0.004 260);
-  --input: oklch(0.922 0.004 260);
-  --chart-2: oklch(0.6 0.1 260);
-  --chart-3: oklch(0.7 0.06 260);
-  --chart-4: oklch(0.8 0.04 260);
-  --chart-5: oklch(0.87 0.03 260);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --chart-2: oklch(0.6 0.1 286.4);
+  --chart-3: oklch(0.7 0.06 286.4);
+  --chart-4: oklch(0.8 0.04 286.4);
+  --chart-5: oklch(0.87 0.03 286.4);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.002 260);
-  --sidebar-foreground: oklch(0.21 0.01 260);
-  --sidebar-accent: oklch(0.96 0.004 260);
-  --sidebar-accent-foreground: oklch(0.25 0.01 260);
-  --sidebar-border: oklch(0.922 0.004 260);
+  --sidebar: oklch(0.967 0.001 286.375);
+  --sidebar-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.25 0.005 286);
+  --sidebar-border: oklch(0.92 0.004 286.32);
 }
 
 /* ---- ACCENT: primary color ---- */
@@ -159,6 +159,23 @@ html[data-theme="violet"] {
   --sidebar-primary: oklch(0.526 0.247 293);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-ring: oklch(0.526 0.247 293);
+}
+
+html[data-theme="brand"] {
+  /* WaPilot brand green (#0f7a46) — the accent the marketing site uses.
+   * Slightly brighter cousins are reserved for data-viz legs (--chart-*)
+   * so charts stay legible on dark zinc surfaces. */
+  --primary: oklch(0.277 0.037 129.9);
+  --primary-foreground: oklch(0.985 0 0);
+  --primary-hover: oklch(0.235 0.034 131);
+  --primary-soft: oklch(0.277 0.037 129.9 / 0.12);
+  --primary-soft-2: oklch(0.277 0.037 129.9 / 0.2);
+  --ring: oklch(0.277 0.037 129.9);
+  --chart-1: oklch(0.45 0.06 150);
+  --chart-2: oklch(0.7 0.1 190);
+  --sidebar-primary: oklch(0.277 0.037 129.9);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.277 0.037 129.9);
 }
 
 html[data-theme="emerald"] {

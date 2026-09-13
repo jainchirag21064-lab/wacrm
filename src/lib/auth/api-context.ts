@@ -101,6 +101,20 @@ export async function requireApiKey(
     throw rateLimited(limit);
   }
 
+  // A key bound to a suspended account is dead until the account is
+  // reinstated (migration 040/041). Checked before the scope so a
+  // suspended key can't reach higher-privilege endpoints either. The
+  // account FK on the key row guarantees the account exists; a missing
+  // row here means the service-role query went wrong — fail closed.
+  const { data: account, error: acctErr } = await supabaseAdmin()
+    .from('accounts')
+    .select('status')
+    .eq('id', row.account_id)
+    .maybeSingle();
+  if (acctErr || !account || account.status === 'suspended') {
+    throw forbidden('This account has been suspended');
+  }
+
   if (scope && !hasScope(row.scopes, scope)) {
     throw forbidden(`This API key is missing the '${scope}' scope`);
   }

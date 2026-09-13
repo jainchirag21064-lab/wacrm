@@ -73,6 +73,22 @@ export function inviteUrl(token: string, baseUrl: string): string {
 }
 
 /**
+ * Build the public customer-invite URL the platform admin shares:
+ * `https://<canonical>/signup?customer_invite=<token>`.
+ *
+ * The token travels in the query (not the path) so the invite stays
+ * distinct from the team /join/<token> flow and the signup page can
+ * carry it verbatim through email confirmation. The token is
+ * URL-encoded so the 43-char base64url value survives any transport.
+ *
+ * `baseUrl` must not have a trailing slash; a stray one is tolerated.
+ */
+export function customerInviteUrl(token: string, baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, "");
+  return `${trimmed}/signup?customer_invite=${encodeURIComponent(token)}`;
+}
+
+/**
  * Compute the `expires_at` timestamp for a new invite.
  *
  * - Clamps `expiresInDays` to `[1, MAX_INVITE_EXPIRY_DAYS]`.

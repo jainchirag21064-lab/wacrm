@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentAccount, toErrorResponse } from '@/lib/auth/account'
 
 /**
  * GET /api/flows/[id]/runs
@@ -9,9 +9,10 @@ import { createClient } from '@/lib/supabase/server'
  * page (`/flows/[id]/runs`) to give the owner end-to-end visibility
  * into what the bot did with each customer.
  *
- * RLS does the ownership check (flow_runs has a `user_id` policy);
- * we also gate on the per-account beta flag so the route 404s for
- * non-beta accounts matching the rest of /api/flows.
+ * RLS does the ownership check (flow_runs selects run through
+ * is_account_member); getCurrentAccount additionally rejects suspended
+ * accounts with a 403 — a suspended account's flows are RLS-hidden, so
+ * without it this route would quietly 404 instead.
  *
  * Limited to the 50 most recent runs. Pagination can come later;
  * the dashboard surface here is for debugging, not heavy querying.
@@ -22,12 +23,12 @@ export async function GET(
 ) {
   const { id } = await context.params
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase
+  try {
+    const ctx = await getCurrentAccount()
+    supabase = ctx.supabase
+  } catch (err) {
+    return toErrorResponse(err)
   }
 
   // Confirm flow exists + caller owns it (RLS does this) before doing

@@ -325,7 +325,7 @@ function HandoffForm({
         if (!cancelled) {
           setMembers(
             (data.members ?? []).filter(
-              (member) => member.role !== "viewer",
+              (member) => member.role !== "viewer" && member.status === "active",
             ),
           );
         }

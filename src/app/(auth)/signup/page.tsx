@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { clientAuthRedirectOrigin } from "@/lib/auth/redirect-url";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MessageSquare, CheckCircle, UsersRound } from "lucide-react";
+
+function signupErrorMessage(error: { message?: unknown }): string {
+  const message = typeof error.message === "string" ? error.message.trim() : "";
+
+  // Supabase Auth often collapses a BEFORE INSERT trigger rejection into
+  // "Database error saving new user" (or an empty serialized object). Keep
+  // the database gate authoritative, but turn that implementation detail
+  // into an actionable message for an uninvited visitor.
+  if (
+    !message ||
+    message === "{}" ||
+    message.toLowerCase().includes("database error saving new user") ||
+    message.toLowerCase().includes("invite-only")
+  ) {
+    // Guidance only — it reveals nothing about which email/account
+    // exists, just pushes the visitor to the most common real-world
+    // cause (signing up with a different email than the invited one).
+    // No enumeration: every rejection condition maps to the same text.
+    return "Sign-up is invitation-only. Make sure you're using the exact email address that was invited and that your invitation link hasn't expired — or contact the platform administrator.";
+  }
+
+  return message;
+}
 
 // `useSearchParams` opts the component out of static prerendering
 // unless wrapped in Suspense — same pattern as /login.
@@ -28,12 +52,23 @@ export default function SignupPage() {
 
 function SignupPageInner() {
   const searchParams = useSearchParams();
-  // When the user lands here from `/join/<token>` we carry the
-  // invite token in the query so it survives the signup → email
-  // verification → redirect round-trip. `emailRedirectTo` below
-  // points back at /join/<token> so the user lands on the redeem
-  // step after verifying instead of being dropped on /dashboard.
+  // Two independent invite channels add a token to the URL:
+  //   - `customer_invite` — platform-approved customer signup (a
+  //     platform admin sent /signup?customer_invite=<token>).
+  //   - `invite` — team /join/<token> flow (a teammate joins an
+  //     account).
+  // The token is carried through the signup → email verification →
+  // redirect round-trip. `emailRedirectTo` points every confirmation
+  // back at /auth/callback (which preserves the invite context and
+  // lands the user on the right next step) instead of Supabase's
+  // default.
+  const customerInviteToken = searchParams.get("customer_invite");
   const inviteToken = searchParams.get("invite");
+  const channel = customerInviteToken
+    ? ("platform" as const)
+    : inviteToken
+      ? ("team" as const)
+      : (null as "platform" | "team" | null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -60,13 +95,24 @@ function SignupPageInner() {
 
     setLoading(true);
 
-    // If we have an invite token, point Supabase's verification
-    // email back at the join page so the user can accept after
-    // verifying. Without a token, Supabase uses its default
-    // redirect (the app root).
-    const emailRedirectTo = inviteToken
-      ? `${window.location.origin}/join/${encodeURIComponent(inviteToken)}`
-      : undefined;
+    // Every signup confirmation routes through /auth/callback so the
+    // one-time `code` is exchanged into a session before redirecting.
+    // `next` carries the invite context:
+    //   - platform invite → /dashboard (the account/profile already
+    //     exist; confirmation completes onboarding).
+    //   - team invite → /join/<token> (they still must accept).
+    // The callback's safeNextPath() rejects anything non-same-origin.
+    const origin = clientAuthRedirectOrigin();
+    let emailRedirectTo: string | undefined;
+    if (customerInviteToken) {
+      emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(
+        "/dashboard",
+      )}`;
+    } else if (inviteToken) {
+      emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(
+        `/join/${inviteToken}`,
+      )}`;
+    }
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -74,13 +120,24 @@ function SignupPageInner() {
       options: {
         data: {
           full_name: fullName,
+          // Carry the platform customer-invite token through so the
+          // server-side gate (enforce_signup_gate, migration 043) can
+          // validate it against platform_customer_invites and bind
+          // the signup to the approved email.
+          ...(customerInviteToken
+            ? { customer_invite_token: customerInviteToken }
+            : {}),
+          // The team /join/<token> invite token is validated against
+          // account_invitations by the same gate.
+          ...(inviteToken ? { invite_token: inviteToken } : {}),
         },
         ...(emailRedirectTo ? { emailRedirectTo } : {}),
       },
     });
 
     if (error) {
-      setError(error.message);
+      console.debug("[signup] rejected:", error.message);
+      setError(signupErrorMessage(error));
       setLoading(false);
       return;
     }
@@ -109,7 +166,7 @@ function SignupPageInner() {
           <CardContent>
             <Link
               href={
-                inviteToken
+                channel === "team" && inviteToken
                   ? `/login?invite=${encodeURIComponent(inviteToken)}`
                   : "/login"
               }
@@ -132,19 +189,25 @@ function SignupPageInner() {
       <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            {inviteToken ? (
+            {channel === "team" ? (
               <UsersRound className="h-6 w-6 text-primary" />
+            ) : channel === "platform" ? (
+              <CheckCircle className="h-6 w-6 text-primary" />
             ) : (
               <MessageSquare className="h-6 w-6 text-primary" />
             )}
           </div>
           <CardTitle className="text-xl text-foreground">
-            {inviteToken ? "Create account & join" : "Create account"}
+            {channel === "team"
+              ? "Create account & join"
+              : "Create your account"}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {inviteToken
+            {channel === "team"
               ? "Verify your email, then accept the invitation to join your team."
-              : "Get started with CRM Template for WhatsApp"}
+              : channel === "platform"
+                ? "You've been approved to sign up. Use the invited email to create your account."
+                : "Get started with WaPilot"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -228,7 +291,7 @@ function SignupPageInner() {
             Already have an account?{" "}
             <Link
               href={
-                inviteToken
+                channel === "team" && inviteToken
                   ? `/login?invite=${encodeURIComponent(inviteToken)}`
                   : "/login"
               }

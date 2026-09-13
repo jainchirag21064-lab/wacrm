@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   createContext,
@@ -9,17 +9,18 @@ import {
   useMemo,
   useRef,
   type ReactNode,
-} from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
-import { DEFAULT_CURRENCY } from "@/lib/currency";
+} from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
+import { DEFAULT_CURRENCY } from '@/lib/currency';
 import {
   canEditSettings as canEditSettingsFor,
   canManageMembers as canManageMembersFor,
   canSendMessages as canSendMessagesFor,
   isAccountRole,
   type AccountRole,
-} from "@/lib/auth/roles";
+  type PlatformAccountStatus,
+} from '@/lib/auth/roles';
 
 interface Profile {
   id: string;
@@ -35,6 +36,10 @@ interface Profile {
   beta_features: string[];
   account_id: string | null;
   account_role: AccountRole | null;
+  /** When an account owner deactivated this member (migration 045).
+   *  Non-null = every account-scoped RLS policy rejects the row;
+   *  the dashboard renders the DeactivatedScreen instead. */
+  deactivated_at: string | null;
 }
 
 interface AccountSummary {
@@ -43,6 +48,9 @@ interface AccountSummary {
   /** Default deal currency (ISO-4217). NOT NULL DEFAULT 'USD' in the
    *  DB (migration 021); narrowed to DEFAULT_CURRENCY when absent. */
   default_currency: string;
+  /** Platform-level account status (migration 040). Suspended
+   *  accounts are blocked from the app. */
+  status: PlatformAccountStatus;
 }
 
 /**
@@ -56,13 +64,16 @@ interface AccountSummary {
  */
 export type AccountStatus =
   /** Profile row still in flight. */
-  | "loading"
+  | 'loading'
   /** Account + role resolved; normal operation. */
-  | "ready"
+  | 'ready'
   /** Signed in, but no profile row / no account / no role on it. */
-  | "unlinked"
+  | 'unlinked'
+  /** An account owner deactivated this member (migration 045).
+   *  All account-scoped RLS policies now reject this user. */
+  | 'deactivated'
   /** The profile lookup itself failed after retrying. */
-  | "error";
+  | 'error';
 
 interface AuthContextValue {
   user: User | null;
@@ -116,6 +127,14 @@ interface AuthContextValue {
    *  while loading or when no account is resolved, so callers can use
    *  it unconditionally. */
   defaultCurrency: string;
+  /** True when the caller's account has been suspended by a platform
+   *  admin (migration 040). Suspended accounts are blocked from the
+   *  dashboard and protected APIs. */
+  isSuspended: boolean;
+  /** True when an account owner deactivated this member (migration
+   *  045). Non-null `profile.deactivated_at`. RLS rejects the user
+   *  everywhere; the shell renders the DeactivatedScreen. */
+  isDeactivated: boolean;
   /** True if `accountRole === 'owner'`. */
   isOwner: boolean;
   /** True if `accountRole === 'admin'` (does NOT include owner — use canManageMembers for "admin or above"). */
@@ -152,6 +171,7 @@ interface ProfileRow {
   beta_features: string[] | null;
   account_id: string | null;
   account_role: string | null;
+  deactivated_at: string | null;
 }
 
 /**
@@ -190,11 +210,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let data: ProfileRow | null = null;
       for (let attempt = 1; ; attempt++) {
         const result = await supabase
-          .from("profiles")
+          .from('profiles')
           .select(
-            "id, full_name, email, avatar_url, role, beta_features, account_id, account_role",
+            'id, full_name, email, avatar_url, role, beta_features, account_id, account_role, deactivated_at'
           )
-          .eq("user_id", userId)
+          .eq('user_id', userId)
           .maybeSingle();
 
         if (!result.error) {
@@ -203,7 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const error = result.error;
-        console.error("[AuthProvider] fetchProfile error:", {
+        console.error('[AuthProvider] fetchProfile error:', {
           message: error.message,
           details: error.details,
           hint: error.hint,
@@ -236,14 +256,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let accountRow: AccountSummary | null = null;
         if (data.account_id) {
           const { data: account, error: accountErr } = await supabase
-            .from("accounts")
+            .from('accounts')
             // default_currency added in migration 021; narrowed to the
             // USD fallback below for older schemas where it reads null.
-            .select("id, name, default_currency")
-            .eq("id", data.account_id)
+            .select('id, name, default_currency, status')
+            .eq('id', data.account_id)
             .maybeSingle();
           if (accountErr) {
-            console.error("[AuthProvider] fetchAccount error:", {
+            console.error('[AuthProvider] fetchAccount error:', {
               message: accountErr.message,
               details: accountErr.details,
               hint: accountErr.hint,
@@ -254,6 +274,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: account.id,
               name: account.name,
               default_currency: account.default_currency ?? DEFAULT_CURRENCY,
+              status: account.status ?? 'active',
+            };
+          }
+        }
+
+        // Post-migration 041, the accounts RLS hides a suspended
+        // account's row from its own members (accounts_select runs
+        // is_account_member(id), which now also requires an active
+        // account), so the lookup above resolves null even though this
+        // user IS a member. Ask the SECURITY DEFINER helper for the
+        // real status and surface it as the account summary — otherwise
+        // `isSuspended` reads false and the dashboard renders normally
+        // with every RLS query silently returning zero rows.
+        if (!accountRow && data.account_id) {
+          const { data: status, error: statusErr } = await supabase.rpc(
+            'current_account_status'
+          );
+          if (!statusErr && status === 'suspended') {
+            accountRow = {
+              id: data.account_id,
+              // The name column is hidden along with the rest of the
+              // row; the SuspendedScreen (the only surface that renders
+              // for a suspended user) never displays it.
+              name: 'Suspended account',
+              default_currency: DEFAULT_CURRENCY,
+              status: 'suspended',
             };
           }
         }
@@ -280,6 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           beta_features: data.beta_features ?? [],
           account_id: data.account_id ?? null,
           account_role: accountRole,
+          deactivated_at: data.deactivated_at ?? null,
         });
         setAccount(accountRow);
         if (!data.account_id || !accountRole) {
@@ -289,17 +336,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // failure as a WARNING) or one predating that migration.
           // Every insert and update they attempt will be denied by RLS.
           setStatusDetail(
-            `profile ${data.id} has no ${!data.account_id ? "account_id" : "account_role"}`,
+            `profile ${data.id} has no ${!data.account_id ? 'account_id' : 'account_role'}`
           );
         }
       } else {
         lastFetchedUserIdRef.current = null;
-        setStatusDetail("no profiles row for the signed-in user");
+        setStatusDetail('no profiles row for the signed-in user');
       }
     } catch (err) {
-      console.error("[AuthProvider] fetchProfile threw:", err);
+      console.error('[AuthProvider] fetchProfile threw:', err);
       lastFetchedUserIdRef.current = null;
-      setStatusDetail(err instanceof Error ? err.message : "profile fetch failed");
+      setStatusDetail(
+        err instanceof Error ? err.message : 'profile fetch failed'
+      );
     } finally {
       setProfileLoading(false);
     }
@@ -311,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const safetyTimer = setTimeout(() => {
       if (mounted) {
-        console.warn("[AuthProvider] getSession() timed out after 3s");
+        console.warn('[AuthProvider] getSession() timed out after 3s');
         setLoading(false);
         setProfileLoading(false);
       }
@@ -324,7 +373,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error,
         } = await supabase.auth.getSession();
 
-        if (error) console.error("[AuthProvider] getSession error:", error.message);
+        if (error)
+          console.error('[AuthProvider] getSession error:', error.message);
 
         if (!mounted) return;
         const currentUser = session?.user ?? null;
@@ -343,7 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfileLoading(false);
         }
       } catch (err) {
-        console.error("[AuthProvider] init threw:", err);
+        console.error('[AuthProvider] init threw:', err);
       } finally {
         if (mounted) setLoading(false);
         clearTimeout(safetyTimer);
@@ -386,7 +436,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setAccount(null);
-    window.location.href = "/login";
+    window.location.href = '/login';
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -403,27 +453,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       accountRole: role,
       accountId: profile?.account_id ?? null,
-      isOwner: role === "owner",
-      isAdmin: role === "admin",
-      isAgent: role === "agent",
-      isViewer: role === "viewer",
+      isDeactivated: profile?.deactivated_at != null,
+      isOwner: role === 'owner',
+      isAdmin: role === 'admin',
+      isAgent: role === 'agent',
+      isViewer: role === 'viewer',
+      isSuspended: account?.status === 'suspended',
       canManageMembers: role ? canManageMembersFor(role) : false,
       canEditSettings: role ? canEditSettingsFor(role) : false,
       canSendMessages: role ? canSendMessagesFor(role) : false,
     };
-  }, [profile?.account_role, profile?.account_id]);
+  }, [
+    profile?.account_role,
+    profile?.account_id,
+    profile?.deactivated_at,
+    account?.status,
+  ]);
 
   // Signed out is not a broken account — the shell redirects to /login
-  // before anything reads this.
+  // before anything reads this. A deactivated member resolves their
+  // profile (own-row RLS) but every account-scoped policy rejects them,
+  // so surface it as its own status before falling into ready/unlinked.
   const accountStatus: AccountStatus = !user
-    ? "loading"
+    ? 'loading'
     : profileLoading
-      ? "loading"
+      ? 'loading'
       : !profile
-        ? "error"
-        : derived.accountId && derived.accountRole
-          ? "ready"
-          : "unlinked";
+        ? 'error'
+        : profile.deactivated_at
+          ? 'deactivated'
+          : derived.accountId && derived.accountRole
+            ? 'ready'
+            : 'unlinked';
 
   return (
     <AuthContext.Provider
@@ -463,21 +524,23 @@ export function useAuth(): AuthContextValue {
       loading: false,
       profileLoading: false,
       signOut: async () => {
-        window.location.href = "/login";
+        window.location.href = '/login';
       },
       refreshProfile: async () => {},
       account: null,
       defaultCurrency: DEFAULT_CURRENCY,
       // Outside the provider there is nothing to resolve yet — 'loading'
       // keeps the access alert from firing on, say, the login page.
-      accountStatus: "loading",
+      accountStatus: 'loading',
       accountStatusDetail: null,
       accountId: null,
       accountRole: null,
+      isDeactivated: false,
       isOwner: false,
       isAdmin: false,
       isAgent: false,
       isViewer: false,
+      isSuspended: false,
       canManageMembers: false,
       canEditSettings: false,
       canSendMessages: false,

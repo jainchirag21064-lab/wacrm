@@ -13,7 +13,10 @@ export async function fetchAccountMembers(): Promise<AccountMember[]> {
     const res = await fetch('/api/account/members', { cache: 'no-store' });
     if (!res.ok) return [];
     const json = (await res.json()) as { members?: AccountMember[] };
-    return json.members ?? [];
+    // Deactivated members are invisible to the app (RLS) but still
+    // returned to admins for the Members tab; assignee pickers must
+    // never offer them.
+    return (json.members ?? []).filter((m) => m.status === 'active');
   } catch {
     return [];
   }

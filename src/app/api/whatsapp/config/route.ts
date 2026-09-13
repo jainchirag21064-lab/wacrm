@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import {
+  getCurrentAccount,
+  UnauthorizedError,
+  ForbiddenError,
+} from '@/lib/auth/account'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import {
   registerPhoneNumber,
@@ -9,26 +13,70 @@ import {
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 
 /**
- * Resolve the caller's account_id from their profile. Inlined here
- * (rather than going through `@/lib/auth/account.getCurrentAccount`)
- * because the GET handler wants to return shaped 200s for every
- * non-auth failure mode, not throw — keeping the helper minimal lets
- * the existing response branches stay as-is.
+ * Resolve the caller's account context for the shaped-response handlers
+ * below. This route deliberately returns shaped 200s for the
+ * "no account" case (the UI renders a "connect WhatsApp" state instead
+ * of an error toast), so the typed errors from getCurrentAccount are
+ * mapped here rather than let to bubble into the generic 500 catch.
  *
- * Returns null if the user has no profile or no account; callers
- * should treat that the same as "not connected".
+ * Returns `{ ok: true, supabase, accountId, userId }` or a
+ * `{ ok: false, response }` NextResponse for the caller to return.
  */
-async function resolveAccountId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (error || !data?.account_id) return null
-  return data.account_id as string
+async function resolveAccountContext(): Promise<
+  | {
+      ok: true
+      supabase: Awaited<ReturnType<typeof getCurrentAccount>>['supabase']
+      accountId: string
+      userId: string
+    }
+  | { ok: false; response: NextResponse }
+> {
+  try {
+    const ctx = await getCurrentAccount()
+    return { ok: true, supabase: ctx.supabase, accountId: ctx.accountId, userId: ctx.userId }
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    }
+    if (err instanceof ForbiddenError) {
+      if (err.message.includes('suspended')) {
+        return { ok: false, response: NextResponse.json({ error: err.message }, { status: 403 }) }
+      }
+      return { ok: false, response: NextResponse.json({ error: 'Your profile is not linked to an account.' }, { status: 403 }) }
+    }
+    throw err
+  }
+}
+
+/** Shared inner logic — returns the context or a 401/403 response. */
+type AccountContextOk = {
+  ok: true
+  supabase: Awaited<ReturnType<typeof getCurrentAccount>>['supabase']
+  accountId: string
+  userId: string
+}
+type AccountContextFail = { ok: false; response: NextResponse }
+async function resolveAccountContextWithGetShape(): Promise<AccountContextOk | AccountContextFail> {
+  try {
+    const ctx = await getCurrentAccount()
+    return { ok: true, supabase: ctx.supabase, accountId: ctx.accountId, userId: ctx.userId }
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    }
+    if (err instanceof ForbiddenError) {
+      if (err.message.includes('suspended')) {
+        return { ok: false, response: NextResponse.json({ error: err.message }, { status: 403 }) }
+      }
+      // GET uses a shaped 200 for "no account" so the UI renders a
+      // friendly "connect WhatsApp" state rather than an error toast.
+      return { ok: false, response: NextResponse.json(
+        { connected: false, reason: 'no_account', message: 'Your profile is not linked to an account.' },
+        { status: 200 },
+      ) }
+    }
+    throw err
+  }
 }
 
 // Lazy-initialised service-role client. We need it to detect a
@@ -62,28 +110,9 @@ function supabaseAdmin() {
  */
 export async function GET() {
   try {
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const accountId = await resolveAccountId(supabase, user.id)
-    if (!accountId) {
-      return NextResponse.json(
-        {
-          connected: false,
-          reason: 'no_account',
-          message: 'Your profile is not linked to an account.',
-        },
-        { status: 200 },
-      )
-    }
+    const resolved = await resolveAccountContextWithGetShape()
+    if (!resolved.ok) return resolved.response
+    const { supabase, accountId } = resolved
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
@@ -165,24 +194,9 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const accountId = await resolveAccountId(supabase, user.id)
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const resolved = await resolveAccountContext()
+    if (!resolved.ok) return resolved.response
+    const { supabase, accountId, userId } = resolved
 
     const body = await request.json()
     const { phone_number_id, waba_id, access_token, verify_token, pin } = body
@@ -388,7 +402,7 @@ export async function POST(request: Request) {
         .from('whatsapp_config')
         .insert({
           account_id: accountId,
-          user_id: user.id,
+          user_id: userId,
           ...baseRow,
         })
 
@@ -440,24 +454,9 @@ export async function POST(request: Request) {
  */
 export async function DELETE() {
   try {
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const accountId = await resolveAccountId(supabase, user.id)
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const resolved = await resolveAccountContext()
+    if (!resolved.ok) return resolved.response
+    const { supabase, accountId } = resolved
 
     const { error: deleteError } = await supabase
       .from('whatsapp_config')

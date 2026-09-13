@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import {
+  getCurrentAccount,
+  UnauthorizedError,
+  ForbiddenError,
+} from '@/lib/auth/account'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
 
@@ -17,35 +21,30 @@ export async function GET(
       )
     }
 
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Resolve the caller's account_id — whatsapp_config is one-per-
-    // account post-multi-user, so a teammate fetching media for a
-    // conversation in the shared inbox needs the account's config,
-    // not their personal (non-existent) row.
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    const accountId = profile?.account_id as string | undefined
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
+    // Status-aware account context: a suspended account's config row is
+    // RLS-hidden post-migration 041, so a plain session + profile read
+    // would degrade to "WhatsApp not configured" instead of the 403 the
+    // user is owed. getCurrentAccount() answers with the right status.
+    let supabase: Awaited<ReturnType<typeof getCurrentAccount>>['supabase']
+    let accountId: string
+    try {
+      const ctx = await getCurrentAccount()
+      supabase = ctx.supabase
+      accountId = ctx.accountId
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+      if (err instanceof ForbiddenError) {
+        const message = err.message.includes('suspended')
+          ? err.message
+          : 'Your profile is not linked to an account.'
+        return NextResponse.json({ error: message }, { status: 403 })
+      }
+      throw err
     }
 
     // Fetch and decrypt WhatsApp config

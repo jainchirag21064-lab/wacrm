@@ -25,11 +25,16 @@
 //   }
 // ============================================================
 
-import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { createClient } from "@/lib/supabase/server";
-import { hasMinRole, isAccountRole, type AccountRole } from "./roles";
+import { createClient } from '@/lib/supabase/server';
+import {
+  hasMinRole,
+  isAccountRole,
+  type AccountRole,
+  type PlatformAccountStatus,
+} from './roles';
 
 // ------------------------------------------------------------
 // Errors
@@ -40,17 +45,17 @@ import { hasMinRole, isAccountRole, type AccountRole } from "./roles";
 
 export class UnauthorizedError extends Error {
   readonly status = 401 as const;
-  constructor(message = "Unauthorized") {
+  constructor(message = 'Unauthorized') {
     super(message);
-    this.name = "UnauthorizedError";
+    this.name = 'UnauthorizedError';
   }
 }
 
 export class ForbiddenError extends Error {
   readonly status = 403 as const;
-  constructor(message = "Forbidden") {
+  constructor(message = 'Forbidden') {
     super(message);
-    this.name = "ForbiddenError";
+    this.name = 'ForbiddenError';
   }
 }
 
@@ -70,8 +75,8 @@ export function toErrorResponse(err: unknown): NextResponse {
   if (err instanceof UnauthorizedError || err instanceof ForbiddenError) {
     return NextResponse.json({ error: err.message }, { status: err.status });
   }
-  console.error("[toErrorResponse] uncategorized error:", err);
-  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  console.error('[toErrorResponse] uncategorized error:', err);
+  return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 }
 
 // ------------------------------------------------------------
@@ -87,8 +92,8 @@ export interface AccountContext {
   accountId: string;
   /** Caller's role within their account. */
   role: AccountRole;
-  /** Lightweight account meta — id + name. */
-  account: { id: string; name: string };
+  /** Lightweight account meta — id + name + status. */
+  account: { id: string; name: string; status: PlatformAccountStatus };
 }
 
 /**
@@ -115,26 +120,35 @@ export async function getCurrentAccount(): Promise<AccountContext> {
   }
 
   const { data, error } = await supabase
-    .from("profiles")
-    .select("account_id, account_role")
-    .eq("user_id", user.id)
+    .from('profiles')
+    .select('account_id, account_role, deactivated_at')
+    .eq('user_id', user.id)
     .maybeSingle();
 
   if (error) {
-    console.error("[getCurrentAccount] profile fetch error:", error);
-    throw new ForbiddenError("Could not load account context");
+    console.error('[getCurrentAccount] profile fetch error:', error);
+    throw new ForbiddenError('Could not load account context');
   }
   if (!data || !data.account_id || !data.account_role) {
     // Pre-migration profile, or a manual insert that skipped the
     // signup trigger. The user is authenticated but the app has
     // no way to scope their queries — treat as forbidden.
-    throw new ForbiddenError("Profile is not linked to an account");
+    throw new ForbiddenError('Profile is not linked to an account');
   }
   if (!isAccountRole(data.account_role)) {
     // The DB enum should make this impossible, but a future
     // migration that broadens the enum without updating TS would
     // hit this — surface it rather than silently widening.
     throw new ForbiddenError(`Unknown account role: ${data.account_role}`);
+  }
+
+  // A deactivated member (migration 045) still resolves their own
+  // profile row — profiles_select trusts `auth.uid() = user_id` — but
+  // they're rejected by every account-scoped policy. Throw a clear 403
+  // before any data read so protected routes can't silently return
+  // filtered-out rows for a revoked user.
+  if (data.deactivated_at) {
+    throw new ForbiddenError('Your access has been revoked');
   }
 
   // Load the account with a plain point lookup by id rather than an
@@ -148,19 +162,40 @@ export async function getCurrentAccount(): Promise<AccountContext> {
   // id needs no relationship inference and is gated by the same accounts
   // RLS, so it stays robust against cache staleness and older schemas.
   const { data: account, error: accountErr } = await supabase
-    .from("accounts")
-    .select("id, name")
-    .eq("id", data.account_id)
+    .from('accounts')
+    .select('id, name, status')
+    .eq('id', data.account_id)
     .maybeSingle();
 
   if (accountErr) {
-    console.error("[getCurrentAccount] account fetch error:", accountErr);
-    throw new ForbiddenError("Could not load account context");
+    console.error('[getCurrentAccount] account fetch error:', accountErr);
+    throw new ForbiddenError('Could not load account context');
   }
   if (!account) {
-    // account_id points at no readable account row — orphaned profile
-    // or an RLS gap. Same "can't scope this user" outcome as above.
-    throw new ForbiddenError("Profile is not linked to an account");
+    // account_id points at no readable account row. Two cases:
+    //
+    //   1. Orphaned profile / RLS gap (pre-migration 041) — genuinely
+    //      no scoped account; "can't scope this user".
+    //
+    //   2. Post-migration 041 the accounts_select policy runs
+    //      `is_account_member(id)`, which now also requires
+    //      status = 'active' — so a SUSPENDED account's row is hidden
+    //      from its own members. `current_account_status()` is the
+    //      SECURITY DEFINER escape hatch that tells the server the
+    //      truth without bypassing the tenant RLS for data rows.
+    const { data: status, error: statusErr } = await supabase.rpc(
+      'current_account_status'
+    );
+    if (!statusErr && status === 'suspended') {
+      throw new ForbiddenError('This account has been suspended');
+    }
+    throw new ForbiddenError('Profile is not linked to an account');
+  }
+  if (account.status === 'suspended') {
+    // Suspended accounts are blocked from the dashboard and protected
+    // APIs. Mirrors the "Profile is not linked" failure so callers
+    // treat it the same way (a 403).
+    throw new ForbiddenError('This account has been suspended');
   }
 
   return {
@@ -168,7 +203,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     userId: user.id,
     accountId: data.account_id,
     role: data.account_role,
-    account: { id: account.id, name: account.name },
+    account: { id: account.id, name: account.name, status: account.status },
   };
 }
 
@@ -183,7 +218,7 @@ export async function requireRole(min: AccountRole): Promise<AccountContext> {
   const ctx = await getCurrentAccount();
   if (!hasMinRole(ctx.role, min)) {
     throw new ForbiddenError(
-      `This action requires the '${min}' role or higher`,
+      `This action requires the '${min}' role or higher`
     );
   }
   return ctx;

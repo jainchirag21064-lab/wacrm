@@ -17,6 +17,10 @@
 
 export type AccountRole = "owner" | "admin" | "agent" | "viewer";
 
+/** Platform-level lifecycle status of an account (migration 040).
+ *  Suspended accounts are blocked from the app and protected APIs. */
+export type PlatformAccountStatus = "active" | "suspended";
+
 /** Ordered list of every valid role, lowest privilege first. */
 export const ACCOUNT_ROLES: readonly AccountRole[] = [
   "viewer",

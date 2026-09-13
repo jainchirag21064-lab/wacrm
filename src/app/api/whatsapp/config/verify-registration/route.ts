@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import {
+  getCurrentAccount,
+  UnauthorizedError,
+  ForbiddenError,
+} from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   getSubscribedApps,
@@ -29,30 +33,27 @@ import {
  * what the UI badges on.
  */
 export async function GET() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // whatsapp_config is one-row-per-account post-017. Resolve the
-  // caller's account_id so a teammate who joined an existing account
-  // sees the same registration state as the admin who set it up.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-  const accountId = profile?.account_id as string | undefined
-  if (!accountId) {
-    return NextResponse.json({
-      live: false,
-      checks: { config_exists: false },
-      message: 'Your profile is not linked to an account.',
-    })
+  let supabase: Awaited<ReturnType<typeof getCurrentAccount>>['supabase']
+  let accountId: string
+  try {
+    const ctx = await getCurrentAccount()
+    supabase = ctx.supabase
+    accountId = ctx.accountId
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (err instanceof ForbiddenError) {
+      if (err.message.includes('suspended')) {
+        return NextResponse.json({ error: err.message }, { status: 403 })
+      }
+      return NextResponse.json({
+        live: false,
+        checks: { config_exists: false },
+        message: 'Your profile is not linked to an account.',
+      })
+    }
+    throw err
   }
 
   const { data: config } = await supabase

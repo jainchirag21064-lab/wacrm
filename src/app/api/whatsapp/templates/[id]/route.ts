@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import {
+  requireRole,
+  toErrorResponse,
+  UnauthorizedError,
+  ForbiddenError,
+} from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   deleteMessageTemplate,
@@ -56,28 +61,24 @@ export async function PATCH(
         { status: 400 },
       )
     }
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
-    // Resolve the caller's account_id so template + whatsapp_config
-    // lookups work for teammates who didn't author the row.
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    const accountId = profile?.account_id as string | undefined
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
+    // Template writes are admin-gated (message_templates_update/delete
+    // RLS requires 'admin'), and the PATCH path calls Meta BEFORE the
+    // local row is written — a viewer must never get to that point, or
+    // a template could be edited/deleted on Meta and then fail locally.
+    // requireRole also answers suspended accounts with a 403 now that
+    // the accounts row is RLS-hidden for them.
+    let supabase: Awaited<ReturnType<typeof requireRole>>['supabase']
+    let accountId: string
+    try {
+      const ctx = await requireRole('admin')
+      supabase = ctx.supabase
+      accountId = ctx.accountId
+    } catch (err) {
+      if (err instanceof UnauthorizedError || err instanceof ForbiddenError) {
+        return toErrorResponse(err)
+      }
+      throw err
     }
 
     let payload: TemplatePayload
@@ -219,6 +220,9 @@ export async function PATCH(
       dry_run: isDryRun(),
     })
   } catch (error) {
+    if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+      return toErrorResponse(error)
+    }
     console.error('Error editing template:', error)
     return NextResponse.json(
       {
@@ -242,29 +246,21 @@ export async function DELETE(
         { status: 400 },
       )
     }
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
-    // Same account-scoping rationale as the PATCH handler above —
-    // teammates need to be able to operate on shared templates +
-    // the shared whatsapp_config.
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    const accountId = profile?.account_id as string | undefined
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
+    // Same gate as PATCH — admin+ and an active account. The Meta-side
+    // delete can happen before the local one, so under-privileged and
+    // suspended callers must be stopped here, not by a failed UPDATE.
+    let supabase: Awaited<ReturnType<typeof requireRole>>['supabase']
+    let accountId: string
+    try {
+      const ctx = await requireRole('admin')
+      supabase = ctx.supabase
+      accountId = ctx.accountId
+    } catch (err) {
+      if (err instanceof UnauthorizedError || err instanceof ForbiddenError) {
+        return toErrorResponse(err)
+      }
+      throw err
     }
 
     const { data: existing, error: lookupErr } = await supabase
@@ -318,6 +314,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, dry_run: isDryRun() })
   } catch (error) {
+    if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+      return toErrorResponse(error)
+    }
     console.error('Error deleting template:', error)
     return NextResponse.json(
       {

@@ -138,16 +138,17 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
 ];
 
 /**
- * WhatsApp-style doodle background applied to the chat area (both the
- * active thread and the empty state). The SVG tile lives at
- * `/public/inbox-doodle.svg`; the slate-950 colour sits underneath so
- * the doodles read as a subtle pattern rather than a stark grid.
+ * WhatsApp-style chat canvas (both the active thread and the empty
+ * state): the classic doodle-pattern background, with a warm-gray tile
+ * on the cream light surface and a dark-gray tile on zinc-900 in dark
+ * mode — matching the native WhatsApp look and the product's marketing
+ * mockups so both read as the same thing.
  *
  * Defined once at module scope so the two render paths can't drift —
- * if we ever switch the asset, both spots update together.
+ * if we ever restyle the canvas, both spots update together.
  */
-const DOODLE_BG_CLASSES =
-  "bg-background bg-[url('/inbox-doodle.svg')] bg-repeat";
+const CHAT_BG_CLASSES =
+  "bg-[#eae6df] bg-[url('/inbox-doodle-light.svg')] bg-repeat dark:bg-zinc-900 dark:bg-[url('/inbox-doodle.svg')]";
 
 export function MessageThread({
   conversation,
@@ -860,12 +861,12 @@ export function MessageThread({
     [conversation, onAssignChange],
   );
 
-  // Empty state — same WhatsApp-style doodle background as the active
+  // Empty state — same WhatsApp-style chat canvas as the active
   // thread below, so swapping between empty/selected doesn't change the
-  // pattern under the user's eye.
+  // background under the user's eye.
   if (!conversation || !contact) {
     return (
-      <div className={cn("flex flex-1 flex-col items-center justify-center", DOODLE_BG_CLASSES)}>
+      <div className={cn("flex flex-1 flex-col items-center justify-center", CHAT_BG_CLASSES)}>
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <MessageSquare className="h-8 w-8 text-muted-foreground" />
         </div>
@@ -899,10 +900,10 @@ export function MessageThread({
     // clipped and the hover toolbar overlaps the Tags panel. Letting the
     // root shrink lets the bubbles' break-words / max-w caps apply.
     // Issue #257.
-    <div className={cn("flex min-w-0 flex-1 flex-col", DOODLE_BG_CLASSES)}>
-      {/* Header — solid card surface sits on top of the doodle so the
-          name/avatar/dropdowns stay legible. */}
-      <div className="flex items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:px-4">
+    <div className={cn("flex min-w-0 flex-1 flex-col", CHAT_BG_CLASSES)}>
+      {/* Header — sits on a slightly lighter canvas tone so the
+          name/avatar/dropdowns stay legible over the chat background. */}
+      <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-[#f3efe8] px-3 py-3 sm:px-4 dark:border-white/5 dark:bg-zinc-900">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Back-to-list button — mobile only. Hidden on lg+ where the
               conversation list is always visible next to the thread. */}

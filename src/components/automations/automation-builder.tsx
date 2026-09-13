@@ -294,7 +294,8 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/account/members", { cache: "no-store" })
         if (!res.ok) return
         const json = (await res.json()) as { members?: AccountMember[] }
-        if (!cancelled) setMembers(json.members ?? [])
+        if (!cancelled)
+          setMembers((json.members ?? []).filter((m) => m.status === 'active'))
       } catch {
         // Members endpoint absent — caller falls back to raw input.
       }

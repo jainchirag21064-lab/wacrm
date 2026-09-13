@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { getTemplate } from '@/lib/automations/templates'
 import { insertSteps, type BuilderStepInput } from '@/lib/automations/steps-tree'
@@ -10,11 +9,13 @@ import {
 } from '@/lib/automations/validate'
 
 export async function GET() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase
+  try {
+    const ctx = await getCurrentAccount()
+    supabase = ctx.supabase
+  } catch (err) {
+    return toErrorResponse(err)
+  }
 
   const { data, error } = await supabase
     .from('automations')
@@ -27,34 +28,15 @@ export async function GET() {
 export async function POST(request: Request) {
   // Creating an automation is a write — the RLS automations_insert policy
   // requires `agent`, but this route inserts via the service-role client
-  // which bypasses RLS, so the role must be enforced here.
+  // which bypasses RLS, so the role must be enforced here. requireRole
+  // also carries the caller's account (and rejects suspended accounts).
+  let ctx
   try {
-    await requireRole('agent')
+    ctx = await requireRole('agent')
   } catch (err) {
     return toErrorResponse(err)
   }
-
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  // Resolve the caller's account_id — `automations.account_id` is NOT
-  // NULL post-017, so an INSERT without it trips the not-null constraint
-  // even though the admin client bypasses RLS.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', user.id)
-    .single()
-  const accountId = profile?.account_id as string | undefined
-  if (!accountId) {
-    return NextResponse.json(
-      { error: 'Your profile is not linked to an account.' },
-      { status: 403 },
-    )
-  }
+  const { userId, accountId } = ctx
 
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
@@ -108,7 +90,7 @@ export async function POST(request: Request) {
   const { data: automation, error: insertErr } = await admin
     .from('automations')
     .insert({
-      user_id: user.id,
+      user_id: userId,
       account_id: accountId,
       name: effectiveName,
       description: effectiveDescription ?? null,

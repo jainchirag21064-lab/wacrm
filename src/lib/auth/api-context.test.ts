@@ -6,9 +6,30 @@ import { ApiError } from "@/lib/api/v1/respond";
 import { __resetRateLimitForTests, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Mock the service-role client factory — requireApiKey only stashes
-// the returned client in the context; tests never call through it.
+// the returned client in the context, but also (post-migration 041)
+// reads the key's account status from it. The mock is a chainable
+// `accounts` builder whose result is driven by `mockAccountStatus`.
+let mockAccountStatus: "active" | "suspended" | null = "active";
+const adminClient = {
+  from: (table: string) => {
+    if (table !== "accounts") {
+      throw new Error(`unexpected table in admin mock: ${table}`);
+    }
+    return {
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () =>
+            Promise.resolve({
+              data: mockAccountStatus === null ? null : { status: mockAccountStatus },
+              error: null,
+            }),
+        }),
+      }),
+    };
+  },
+};
 vi.mock("@/lib/flows/admin-client", () => ({
-  supabaseAdmin: () => ({ __isMockAdminClient: true }),
+  supabaseAdmin: () => adminClient,
 }));
 
 // Mock the store so we control which row a hash resolves to.
@@ -47,6 +68,7 @@ beforeEach(() => {
   __resetRateLimitForTests();
   findActiveKeyByHash.mockReset();
   touchLastUsed.mockReset();
+  mockAccountStatus = "active";
 });
 
 afterEach(() => {
@@ -128,5 +150,36 @@ describe("requireApiKey", () => {
       "rate_limited",
       429,
     );
+  });
+
+  it("403s with the public envelope when the key's account is suspended", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    mockAccountStatus = "suspended";
+    await expectApiError(
+      requireApiKey(reqWith(`Bearer ${KEY}`), "messages:send"),
+      "forbidden",
+      403,
+    );
+    // The scope check is never reached — suspension short-circuits.
+    expect(touchLastUsed).not.toHaveBeenCalled();
+  });
+
+  it("403s when the account row cannot be read (fail closed)", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    mockAccountStatus = null;
+    await expectApiError(
+      requireApiKey(reqWith(`Bearer ${KEY}`), "messages:send"),
+      "forbidden",
+      403,
+    );
+    expect(touchLastUsed).not.toHaveBeenCalled();
+  });
+
+  it("still resolves the context for an active account", async () => {
+    findActiveKeyByHash.mockResolvedValue(row());
+    mockAccountStatus = "active";
+    const ctx = await requireApiKey(reqWith(`Bearer ${KEY}`), "messages:send");
+    expect(ctx.accountId).toBe("acct-1");
+    expect(touchLastUsed).toHaveBeenCalledWith("key-1");
   });
 });
